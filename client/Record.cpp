@@ -12,6 +12,7 @@
 #include "Record.h"
 
 #include <algorithm>
+#include <vector>
 
 #include <util/Logger.h>
 
@@ -48,8 +49,25 @@ bool Record::Init(const DWORD bitrate) noexcept
             {
                 try
                 {
+                    // Convert device name from system encoding (GBK on Chinese Windows) to UTF-8
+                    std::string utf8Name;
+                    {
+                        const int wideLen = MultiByteToWideChar(CP_ACP, 0, devInfo.name, -1, nullptr, 0);
+                        if (wideLen > 0)
+                        {
+                            std::vector<wchar_t> wideBuf(wideLen);
+                            MultiByteToWideChar(CP_ACP, 0, devInfo.name, -1, wideBuf.data(), wideLen);
+                            const int utf8Len = WideCharToMultiByte(CP_UTF8, 0, wideBuf.data(), -1, nullptr, 0, nullptr, nullptr);
+                            if (utf8Len > 0)
+                            {
+                                utf8Name.resize(utf8Len - 1);
+                                WideCharToMultiByte(CP_UTF8, 0, wideBuf.data(), -1, utf8Name.data(), utf8Len, nullptr, nullptr);
+                            }
+                        }
+                    }
+
                     Record::deviceNumbersList.emplace_back(devNumber);
-                    Record::deviceNamesList.emplace_back(devInfo.name);
+                    Record::deviceNamesList.emplace_back(utf8Name.empty() ? devInfo.name : utf8Name);
                 }
                 catch (const std::exception& exception)
                 {

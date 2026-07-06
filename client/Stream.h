@@ -16,6 +16,7 @@
 #include <functional>
 #include <vector>
 #include <map>
+#include <string>
 
 #include "StreamInfo.h"
 #include "VoicePacket.h"
@@ -56,6 +57,10 @@ public:
     void SlideParameter(BYTE parameter, float startValue, float endValue, DWORD time);
     void EffectCreate(DWORD effect, DWORD number, int priority, const void* paramPtr, DWORD paramSize);
     void EffectDelete(DWORD effect);
+    void EffectAppendFilter(DWORD effect, DWORD number, int priority, const void* paramPtr, DWORD paramSize);
+    void EffectRemoveFilter(DWORD effect, DWORD number, int priority);
+
+    virtual void SetTarget(BYTE targetType, WORD targetId);
 
     std::size_t AddPlayCallback(PlayCallback playCallback);
     std::size_t AddStopCallback(StopCallback stopCallback);

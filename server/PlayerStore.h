@@ -31,6 +31,8 @@ class PlayerStore {
 public:
 	static FlatPtrHashSet<IPlayer> internalPlayerPool;
 
+	static std::array<Vector3, PLAYER_POOL_SIZE> cachedPositions;
+
 	static void AddPlayerToStore(uint16_t playerId, uint8_t version, bool microStatus);
 	static void RemovePlayerFromStore(uint16_t playerId);
 

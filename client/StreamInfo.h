@@ -36,8 +36,13 @@ struct StreamInfo {
 public:
 
     StreamInfo(StreamType type, D3DCOLOR color, std::string name) noexcept;
+    StreamInfo(StreamType type, D3DCOLOR color, std::string name, uint32_t streamId) noexcept;
 
     ~StreamInfo() noexcept = default;
+
+    void SetIconTexture(IDirect3DTexture9* tex) noexcept { iconTexture = tex; }
+    IDirect3DTexture9* GetIconTexture() const noexcept { return iconTexture; }
+    uint32_t GetStreamId() const noexcept { return streamId; }
 
 public:
 
@@ -50,5 +55,10 @@ private:
     StreamType type { StreamType::None };
     D3DCOLOR color { -1u };
     std::string name;
+    uint32_t streamId{ 0 };
+
+public:
+
+    IDirect3DTexture9* iconTexture{ nullptr };
 
 };

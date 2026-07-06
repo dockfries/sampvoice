@@ -8,10 +8,13 @@ add_library(${PROJECT_NAME} SHARED ${sampvoice_source_list})
 
 include_directories("include")
 
+# Force 32-bit PAWN cells regardless of host architecture
+target_compile_definitions(${PROJECT_NAME} PRIVATE PAWN_CELL_SIZE=32)
+
 if(WIN32)
 	add_definitions(-DNOMINMAX)
 else()
-	set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -Wno-format-security -Wno-conversion-null -Wno-pointer-arith -static-libstdc++")
+	set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -Wno-format-security -Wno-conversion-null -Wno-pointer-arith -static-libstdc++ -msse4.2 -Wno-interference-size")
 	set_property(TARGET ${PROJECT_NAME} APPEND_STRING PROPERTY COMPILE_FLAGS " -fno-strict-aliasing")
 	set_property(TARGET ${PROJECT_NAME} APPEND_STRING PROPERTY LINK_FLAGS " -lrt")
 endif()

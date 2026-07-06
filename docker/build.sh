@@ -5,11 +5,18 @@
 && config=Release \
 || config="$CONFIG"
 
+# Target architecture: [32] or 64
+[[ -z "$ARCH" ]] \
+&& arch=32 \
+|| arch="$ARCH"
+
 docker build \
-    -t omp-voice/build:ubuntu-18.04 ./ \
+    -t omp-voice/build:ubuntu-24.04 ./ \
 || exit 1
 
-folders=('build')
+build_dir="build${arch}"
+
+folders=("${build_dir}")
 for folder in "${folders[@]}"; do
     if [[ ! -d "./${folder}" ]]; then
         mkdir ${folder}
@@ -22,6 +29,7 @@ docker run \
     -t \
     -w /code \
     -v $PWD/..:/code \
-    -v $PWD/build:/code/build \
+    -v $PWD/${build_dir}:/code/build \
     -e CONFIG=${config} \
-    omp-voice/build:ubuntu-18.04
+    -e ARCH=${arch} \
+    omp-voice/build:ubuntu-24.04

@@ -13,7 +13,8 @@
 
 #include <fstream>
 
-#include <samp/CNetGame.h>
+#include <svapi.h>
+#include <util/Addresses.h>
 #include <util/Logger.h>
 
 BlackList::LockedPlayer::LockedPlayer(std::string playerName, const WORD playerId) noexcept
@@ -37,13 +38,14 @@ bool BlackList::Load(const std::string& filePath)
         {
             WORD playerId { SV::kNonePlayer };
 
-            if (const auto pNetGame = SAMP::pNetGame(); pNetGame != nullptr)
+            if (const auto pNetGame = sv::RefNetGame(); pNetGame != nullptr)
             {
-                if (const auto pPlayerPool = pNetGame->GetPlayerPool(); pPlayerPool != nullptr)
+                if (const auto pPlayerPool = pNetGame->m_pPools->m_pPlayer; pPlayerPool != nullptr)
                 {
-                    for (WORD iPlayerId { 0 }; iPlayerId < MAX_PLAYERS; ++iPlayerId)
+                    for (WORD iPlayerId { 0 }; iPlayerId < sv::CPlayerPool::MAX_PLAYERS; ++iPlayerId)
                     {
-                        if (const auto playerName = pPlayerPool->GetName(iPlayerId); playerName != nullptr)
+                        if (pPlayerPool->m_pObject[iPlayerId] == nullptr) continue;
+                        if (const auto playerName = pPlayerPool->m_pObject[iPlayerId]->m_szNick.c_str(); playerName != nullptr)
                         {
                             if (nickName == playerName)
                             {
@@ -79,7 +81,7 @@ bool BlackList::Save(const std::string& filePath)
     return true;
 }
 
-bool BlackList::Init(const AddressesBase& addrBase) noexcept
+bool BlackList::Init() noexcept
 {
     if (BlackList::initStatus)
         return false;
@@ -88,10 +90,10 @@ bool BlackList::Init(const AddressesBase& addrBase) noexcept
 
     try
     {
-        BlackList::deletePlayerInPoolHook = MakeJumpHook(addrBase.GetDeletePlayerFromPoolFunc(),
-                                                         BlackList::DeletePlayerFromPoolHook);
-        BlackList::createPlayerInPoolHook = MakeJumpHook(addrBase.GetCreatePlayerInPoolFunc(),
-                                                         BlackList::CreatePlayerInPoolHook);
+        BlackList::deletePlayerInPoolHook = MakeJumpHook(Addresses::GetDeletePlayerFromPoolFunc(),
+                                                          BlackList::DeletePlayerFromPoolHook);
+        BlackList::createPlayerInPoolHook = MakeJumpHook(Addresses::GetCreatePlayerInPoolFunc(),
+                                                          BlackList::CreatePlayerInPoolHook);
     }
     catch (const std::exception& exception)
     {
@@ -129,13 +131,14 @@ void BlackList::LockPlayer(const WORD playerId)
 {
     if (playerId != SV::kNonePlayer)
     {
-        if (const auto pNetGame = SAMP::pNetGame();
+        if (const auto pNetGame = sv::RefNetGame();
             pNetGame != nullptr)
         {
-            if (const auto pPlayerPool = pNetGame->GetPlayerPool();
+            if (const auto pPlayerPool = pNetGame->m_pPools->m_pPlayer;
                 pPlayerPool != nullptr)
             {
-                if (const auto playerName = pPlayerPool->GetName(playerId);
+                if (pPlayerPool->m_pObject[playerId] == nullptr) return;
+                if (const auto playerName = pPlayerPool->m_pObject[playerId]->m_szNick.c_str();
                     playerName != nullptr)
                 {
                     for (const auto& playerInfo : BlackList::blackList)
@@ -206,11 +209,11 @@ bool BlackList::IsPlayerBlocked(const std::string& playerName) noexcept
     return false;
 }
 
-BOOL __thiscall BlackList::CreatePlayerInPoolHook(SAMP::CPlayerPool* const _this,
-    const SAMP::ID nId, const char* const szName, const BOOL bIsNPC) noexcept
+BOOL __thiscall BlackList::CreatePlayerInPoolHook(sv::CPlayerPool* const _this,
+    const sampapi::ID nId, const char* const szName, const BOOL bIsNPC) noexcept
 {
     BlackList::createPlayerInPoolHook->Disable();
-    const auto retStatus = static_cast<BOOL(__thiscall*)(SAMP::CPlayerPool*, SAMP::ID, const char*, BOOL)>
+    const auto retStatus = static_cast<BOOL(__thiscall*)(sv::CPlayerPool*, sampapi::ID, const char*, BOOL)>
         (BlackList::createPlayerInPoolHook->GetPatch().memAddr)(_this, nId, szName, bIsNPC);
     BlackList::createPlayerInPoolHook->Enable();
 
@@ -229,8 +232,8 @@ BOOL __thiscall BlackList::CreatePlayerInPoolHook(SAMP::CPlayerPool* const _this
     return retStatus;
 }
 
-BOOL __thiscall BlackList::DeletePlayerFromPoolHook(SAMP::CPlayerPool* const _this,
-    const SAMP::ID nId, const int nReason) noexcept
+BOOL __thiscall BlackList::DeletePlayerFromPoolHook(sv::CPlayerPool* const _this,
+    const sampapi::ID nId, const int nReason) noexcept
 {
     for (auto& playerInfo : BlackList::blackList)
     {
@@ -242,7 +245,7 @@ BOOL __thiscall BlackList::DeletePlayerFromPoolHook(SAMP::CPlayerPool* const _th
     }
 
     BlackList::deletePlayerInPoolHook->Disable();
-    const auto retStatus = static_cast<BOOL(__thiscall*)(SAMP::CPlayerPool*, SAMP::ID, int)>
+    const auto retStatus = static_cast<BOOL(__thiscall*)(sv::CPlayerPool*, sampapi::ID, int)>
         (BlackList::deletePlayerInPoolHook->GetPatch().memAddr)(_this, nId, nReason);
     BlackList::deletePlayerInPoolHook->Enable();
 

@@ -1,21 +1,9 @@
-/*
-    This is a SampVoice project file
-    Author: CyberMor <cyber.mor.2020@gmail.ru>
-    open.mp version author: AmyrAhmady (iAmir) <hhm6@yahoo.com>
-
-    See more here https://github.com/AmyrAhmady/sampvoice
-    Original repository: https://github.com/CyberMor/sampvoice
-
-    Copyright (c) Daniel (CyberMor) 2020 All rights reserved
-*/
-
 #pragma once
 
 #include <Windows.h>
 
+#include <svapi.h>
 #include <game/CRect.h>
-
-#include "AddressesBase.h"
 
 class GameUtil {
 
@@ -35,6 +23,6 @@ public:
     static bool HasPlayerPed() noexcept;
     static bool IsPlayerVisible(WORD playerId) noexcept;
     static bool GetRadarRect(CRect& radarRect) noexcept;
-    static void DisableAntiCheat(const AddressesBase& addrBase);
+    static void DisableAntiCheat();
 
 };

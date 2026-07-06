@@ -15,6 +15,7 @@
 
 #include <audio/bass_fx.h>
 #include <game/CCamera.h>
+#include <util/Addresses.h>
 #include <util/Logger.h>
 
 #include "PluginConfig.h"
@@ -23,7 +24,7 @@
 #pragma comment(lib, "bass.lib")
 #pragma comment(lib, "bass_fx.lib")
 
-bool Playback::Init(const AddressesBase& addrBase) noexcept
+bool Playback::Init() noexcept
 {
     if (Playback::initStatus) return false;
 
@@ -31,7 +32,7 @@ bool Playback::Init(const AddressesBase& addrBase) noexcept
 
     try
     {
-        Playback::bassInitHook = MakeCallHook(addrBase.GetBassInitCallAddr(), Playback::BassInitHookFunc);
+        Playback::bassInitHook = MakeCallHook(Addresses::GetBassInitCallAddr(), Playback::BassInitHookFunc);
     }
     catch (const std::exception& exception)
     {
@@ -40,7 +41,7 @@ bool Playback::Init(const AddressesBase& addrBase) noexcept
         return false;
     }
 
-    Memory::FillWithNops(addrBase.GetBassSetConfigAddr(), 8);
+    Memory::FillWithNops(Addresses::GetBassSetConfigAddr(), 8);
 
     if (!PluginConfig::IsPlaybackLoaded())
     {

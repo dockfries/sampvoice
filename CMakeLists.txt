@@ -1,7 +1,25 @@
 cmake_minimum_required(VERSION 3.19)
+
+# Required for glm submodule (uses cmake_minimum_required with version < 3.5)
+set(CMAKE_POLICY_VERSION_MINIMUM "3.5")
+
 project(sampvoice)
 
 set(CMAKE_CXX_STANDARD 17)
+
+option(BUILD_CLIENT "Build the client plugin (SA:MP .asi, 32-bit only)" OFF)
+
+# Architecture notes:
+#   Server plugin (sampvoice-server) can be built as 32-bit or 64-bit.
+#   PAWN cell size is always forced to 32-bit regardless of plugin architecture.
+#   Client plugin (sampvoice-client) is SA:MP .asi, 32-bit only.
+#
+# Windows examples:
+#   32-bit: cmake -B build32 -A Win32
+#   64-bit: cmake -B build64 -A x64
+# Linux examples:
+#   32-bit: cmake -B build32 -DCMAKE_C_FLAGS=-m32 -DCMAKE_CXX_FLAGS=-m32
+#   64-bit: cmake -B build64
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
@@ -39,6 +57,7 @@ set_property(TARGET OMP-Network PROPERTY FOLDER "Server")
 set_property(TARGET sampvoice-server PROPERTY FOLDER "Server")
 
 if(WIN32 AND BUILD_CLIENT)
+    add_subdirectory(lib/sampapi)
     add_subdirectory(client)
     set_property(TARGET sampvoice-client PROPERTY FOLDER "Client")
 endif()

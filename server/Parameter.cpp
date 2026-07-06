@@ -10,13 +10,13 @@ Parameter::Parameter(Stream* const stream, const uint8_t parameter, const float 
 {
 	PackWrap(this->packetSetParameter, SV::ControlPacketType::setStreamParameter, sizeof(SV::SetStreamParameterPacket));
 
-	PackGetStruct(&*this->packetSetParameter, SV::SetStreamParameterPacket)->stream = reinterpret_cast<uint32_t>(stream);
+	PackGetStruct(&*this->packetSetParameter, SV::SetStreamParameterPacket)->stream = stream->streamId;
 	PackGetStruct(&*this->packetSetParameter, SV::SetStreamParameterPacket)->parameter = parameter;
 	PackGetStruct(&*this->packetSetParameter, SV::SetStreamParameterPacket)->value = initValue;
 
 	PackWrap(this->packetSlideParameter, SV::ControlPacketType::slideStreamParameter, sizeof(SV::SlideStreamParameterPacket));
 
-	PackGetStruct(&*this->packetSlideParameter, SV::SlideStreamParameterPacket)->stream = reinterpret_cast<uint32_t>(stream);
+	PackGetStruct(&*this->packetSlideParameter, SV::SlideStreamParameterPacket)->stream = stream->streamId;
 	PackGetStruct(&*this->packetSlideParameter, SV::SlideStreamParameterPacket)->parameter = parameter;
 }
 

@@ -19,7 +19,7 @@
 #include <imgui/imgui.h>
 #include <util/Memory.hpp>
 #include <util/Resource.h>
-#include <util/AddressesBase.h>
+#include <svapi.h>
 #include <util/BlurEffect.h>
 #include <util/Texture.h>
 #include <util/Render.h>
@@ -130,7 +130,7 @@ private:
 
 public:
 
-    static bool Init(IDirect3DDevice9* pDevice, const AddressesBase& addrBase,
+    static bool Init(IDirect3DDevice9* pDevice,
         const Resource& rShader, const Resource& rLogo, const Resource& rFont) noexcept;
     static void Free() noexcept;
 

@@ -7,7 +7,7 @@
 
 #### Поддержка версий
 ----------------------------------
-* Клиент: SA:MP 0.3.7 (R1, R3)
+* Клиент: SA:MP 0.3.7 (R1, R3-1, R5-1, DL-1)
 * Сервер: Последняя версия open.mp
 
 ## Основные возможности
@@ -146,36 +146,129 @@ public OnGameModeExit()
 }
 ```
 
+## Конфигурация
+---------------------------------
+#### Канальная маршрутизация (Channel Bitmask)
+---------------------------------
+Плагин поддерживает **32 независимых аудиоканала** (биты 0–31) для гибкой маршрутизации голоса. Канал добавляет дополнительное измерение: нажатие кнопки, привязка спикера и стрим — каждый несут свою битовую маску каналов. Голос передаётся только если все три маски пересекаются.
+
+| Термин | Значение |
+|--------|----------|
+| `channelmask` | `uint32_t` битовая маска. Бит 0 = канал 0 (`0x01`), бит 1 = канал 1 (`0x02`), … бит 31 = канал 31 (`0x80000000`) |
+| `SvSetKeyWithChannels(player, key, mask)` | При нажатии `key` каналы из `mask` становятся **активными** |
+| `SvAttachSpeakerToStreamWithChannels(stream, player, mask)` | Голос только на каналах из `mask` попадёт в `stream` |
+| `SvEnableSpeaker(player, mask)` / `SvDisableSpeaker(player, mask)` | Разрешает/запрещает игроку указанные каналы (по умолчанию все). `SvCheckSpeaker(player, mask)` проверяет |
+| **Правило** | `(activeCh & enabledCh & chMask) != 0` — все три маски должны пересекаться |
+
+```pawn
+#define CH_GLOBAL   0b0001  // канал 0
+#define CH_TEAM     0b0010  // канал 1
+#define CH_SQUAD    0b0100  // канал 2
+
+new gStream = SvCreateStream(0.0);
+new tStream = SvCreateStream(30.0);
+new sStream = SvCreateStream(10.0);
+
+SvSetKeyWithChannels(playerid, 0x42, CH_GLOBAL | CH_TEAM);
+SvSetKeyWithChannels(playerid, 0x5A, CH_SQUAD);
+
+SvAttachSpeakerToStreamWithChannels(gStream, playerid, CH_GLOBAL);
+SvAttachSpeakerToStreamWithChannels(tStream, playerid, CH_TEAM);
+SvAttachSpeakerToStreamWithChannels(sStream, playerid, CH_SQUAD);
+
+SvEnableSpeaker(playerid, CH_GLOBAL | CH_TEAM);  // squad запрещён
+```
+
+> **Примечание:** `SvAttachSpeakerToStream` (без `WithChannels`) использует маску `0xFFFFFFFF`. `SvAddKey` (без `WithChannels`) тоже. Скрипты без каналов работают без изменений.
+
+## Настройка
+---------------------------------
+Плагин настраивается через `config.json` open.mp:
+
+```json
+{
+    "sampvoice": {
+        "port": 2020,
+        "threads": 4,
+        "updaterate": 200
+    }
+}
+```
+
+| Ключ | По умолчанию | Описание |
+|------|-------------|----------|
+| `sampvoice.port` | Случайный | UDP порт для голосового трафика. Укажите, если нужен доступ через firewall |
+| `sampvoice.threads` | 8 | Количество рабочих потоков для обработки голоса. Обычно количество ядер CPU минус 1 |
+| `sampvoice.updaterate` | 200 | Интервал проверки позиции игроков в миллисекундах. Меньше = быстрее реакция, но выше нагрузка на CPU |
+
 ## Компиляция
 ---------------------------------
-Плагин компилируется под платформы *Win32* и *Linux x86*.
+Плагин компилируется под платформы *Win32/x64* и *Linux x86/x86_64*.
+
+Серверный плагин можно собрать как **32-битным**, так и **64-битным**. Клиентский плагин (`.asi` для SA:MP) — только **32-битный**.
+
+> **Примечание:** Размер PAWN-ячейки всегда **32-битный** независимо от архитектуры плагина.
 
 Ниже прилагаются подробные инструкции:
 
 Склонируйте репозиторий себе на компьютер и перейдите в директорию плагина:
 ```sh
 git clone https://github.com/AmyrAhmady/sampvoice.git
+git submodule update --init --recursive
 cd sampvoice
 ```
 
-### Windows (Client/Server)
+### Windows (Сервер)
 ---------------------------------
-Запустите cmake для корневого каталога. Пример того, как это работает:
+#### 32-битный сервер
 ```sh
-mkdir build
-cd build
+mkdir build32
+cd build32
 cmake .. -A Win32
+cmake --build .
 ```
-Затем откройте файл solution (.sln) в папке `build`.  
 
-Для компиляции клиентской части плагина вам понадобится *DirectX SDK*. По умолчанию клиентская часть компилируется под версию **SA:MP 0.3.7 (R1)**, но вы также можете явно указать компилятору версию для билда с помощью макросов **SAMP_R1** и **SAMP_R3**.
+#### 64-битный сервер
+```sh
+mkdir build64
+cd build64
+cmake .. -A x64
+cmake --build .
+```
+
+### Windows (Клиент)
+--------------------------------
+Клиентский плагин (`.asi` для SA:MP) собирается только как **32-битный**.
+
+Все четыре версии SA:MP (R1, R3-1, R5-1, DL-1) собираются одновременно:
+
+```sh
+mkdir build_client
+cd build_client
+cmake .. -DBUILD_CLIENT=ON -A Win32
+cmake --build . --target sampvoice-client
+```
+
+Результаты: `sampvoice_r1.asi`, `sampvoice_r3.asi`, `sampvoice_r5.asi`, `sampvoice_dl.asi`
+
+> **Примечание:** Для упаковки файлов времени выполнения (BASS DLL, файлы языков, ресурсы) вместе с `.asi` обратитесь к CI workflow в `.github/workflows/build.yml`.
+
+> **Примечание:** Клиенту требуются заголовки `d3dx9.h`. Если установлен DirectX SDK, укажите `DXSDK_DIR`. В противном случае сборка найдёт их через NuGet (`Microsoft.DXSDK.D3DX`) или использует локальные заголовки в `client/include/dxsdk/`. Отдельная установка DXSDK не требуется.
 
 ### Linux (Server)
 ---------------------------------
-Запустите cmake для корневого каталога. Пример того, как это работает:
+#### 32-битная сборка
 ```sh
-mkdir build
-cd build
+mkdir build32
+cd build32
 cmake .. -DCMAKE_C_FLAGS=-m32 -DCMAKE_CXX_FLAGS=-m32 -DCMAKE_BUILD_TYPE=Release
+cmake --build . --config Release
+```
+
+#### 64-битная сборка
+```sh
+mkdir build64
+cd build64
+cmake .. -DCMAKE_BUILD_TYPE=Release
 cmake --build . --config Release
 ```

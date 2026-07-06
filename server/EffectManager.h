@@ -11,12 +11,19 @@
 #pragma once
 
 #include <set>
-#include <mutex>
+#include <shared_mutex>
 
 #include "Effect.h"
 
 class EffectManager {
 public: 
+    static Effect* CreateEmptyEffect()
+    {
+        Effect* effect = new (std::nothrow) Effect();
+        RegisterEffect(effect);
+        return effect;
+    }
+
     template<class ParametersType>
     static Effect* CreateEffect(uint32_t number, int priority, const ParametersType& parameters) 
     {
@@ -31,5 +38,5 @@ public:
 
 private:
     static std::set<Effect*> effects_;
-    static std::mutex mutex_;
+    static std::shared_mutex mutex_;
 };

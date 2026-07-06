@@ -45,6 +45,10 @@ public:
 	virtual bool    SvAddKey(uint16_t playerid,
 		uint8_t keyid) = 0;
 
+	virtual bool    SvSetKeyWithChannels(uint16_t playerid,
+		uint8_t keyid,
+		uint32_t channelMask) = 0;
+
 	virtual bool    SvHasKey(uint16_t playerid,
 		uint8_t keyid) = 0;
 
@@ -146,6 +150,10 @@ public:
 	virtual bool    SvAttachSpeakerToStream(Stream* stream,
 		uint16_t playerid) = 0;
 
+	virtual bool    SvAttachSpeakerToStreamWithChannels(Stream* stream,
+		uint16_t playerid,
+		uint32_t channelMask) = 0;
+
 	virtual bool    SvHasSpeakerInStream(Stream* stream,
 		uint16_t playerid) = 0;
 
@@ -189,7 +197,13 @@ public:
 
 	virtual void    SvDeleteStream(Stream* stream) = 0;
 
+	virtual void    SvSetStreamTarget(Stream* stream,
+		uint8_t targetType,
+		uint16_t targetId) = 0;
+
 	// --------------------------------------------------------------------------
+
+	virtual Effect* SvEffectCreate() = 0;
 
 	virtual Effect* SvEffectCreateChorus(int priority,
 		float wetdrymix,
@@ -268,6 +282,31 @@ public:
 
 	virtual void    SvEffectDelete(Effect* effect) = 0;
 
+	virtual bool    SvEffectAppendFilter(Effect* effect,
+		uint32_t number,
+		int32_t priority,
+		const void* params,
+		uint32_t paramSize) = 0;
+
+	virtual bool    SvEffectRemoveFilter(Effect* effect,
+		uint32_t number,
+		int32_t priority) = 0;
+
+	virtual void    SvSetIcon(Stream* stream,
+		const std::string& icon) = 0;
+
+	virtual bool    SvEnableTransiter(Stream* stream) = 0;
+	virtual bool    SvDisableTransiter(Stream* stream) = 0;
+	virtual bool    SvCheckTransiter(Stream* stream) = 0;
+
+	virtual bool    SvEnableListener(uint16_t playerId) = 0;
+	virtual bool    SvDisableListener(uint16_t playerId) = 0;
+	virtual bool    SvCheckListener(uint16_t playerId) = 0;
+
+	virtual bool    SvEnableSpeaker(uint16_t playerId, uint32_t channels) = 0;
+	virtual bool    SvDisableSpeaker(uint16_t playerId, uint32_t channels) = 0;
+	virtual bool    SvCheckSpeaker(uint16_t playerId, uint32_t channels) = 0;
+
 };
 
 using PawnInterfacePtr = std::unique_ptr<PawnInterface>;
@@ -298,12 +337,14 @@ public:
 private:
 
 	static cell AMX_NATIVE_CALL n_SvDebug(AMX* amx, cell* params);
+	static cell AMX_NATIVE_CALL n_SvCheckDebug(AMX* amx, cell* params);
 	static cell AMX_NATIVE_CALL n_SvInit(AMX* amx, cell* params);
 	static cell AMX_NATIVE_CALL n_SvGetVersion(AMX* amx, cell* params);
 	static cell AMX_NATIVE_CALL n_SvHasMicro(AMX* amx, cell* params);
 	static cell AMX_NATIVE_CALL n_SvStartRecord(AMX* amx, cell* params);
 	static cell AMX_NATIVE_CALL n_SvStopRecord(AMX* amx, cell* params);
 	static cell AMX_NATIVE_CALL n_SvAddKey(AMX* amx, cell* params);
+	static cell AMX_NATIVE_CALL n_SvSetKeyWithChannels(AMX* amx, cell* params);
 	static cell AMX_NATIVE_CALL n_SvHasKey(AMX* amx, cell* params);
 	static cell AMX_NATIVE_CALL n_SvRemoveKey(AMX* amx, cell* params);
 	static cell AMX_NATIVE_CALL n_SvRemoveAllKeys(AMX* amx, cell* params);
@@ -326,6 +367,7 @@ private:
 	static cell AMX_NATIVE_CALL n_SvDetachListenerFromStream(AMX* amx, cell* params);
 	static cell AMX_NATIVE_CALL n_SvDetachAllListenersFromStream(AMX* amx, cell* params);
 	static cell AMX_NATIVE_CALL n_SvAttachSpeakerToStream(AMX* amx, cell* params);
+	static cell AMX_NATIVE_CALL n_SvAttachSpeakerToStreamWithChannels(AMX* amx, cell* params);
 	static cell AMX_NATIVE_CALL n_SvHasSpeakerInStream(AMX* amx, cell* params);
 	static cell AMX_NATIVE_CALL n_SvDetachSpeakerFromStream(AMX* amx, cell* params);
 	static cell AMX_NATIVE_CALL n_SvDetachAllSpeakersFromStream(AMX* amx, cell* params);
@@ -337,6 +379,8 @@ private:
 	static cell AMX_NATIVE_CALL n_SvStreamParameterSlideTo(AMX* amx, cell* params);
 	static cell AMX_NATIVE_CALL n_SvStreamParameterSlide(AMX* amx, cell* params);
 	static cell AMX_NATIVE_CALL n_SvDeleteStream(AMX* amx, cell* params);
+	static cell AMX_NATIVE_CALL n_SvSetStreamTarget(AMX* amx, cell* params);
+	static cell AMX_NATIVE_CALL n_SvEffectCreate(AMX* amx, cell* params);
 	static cell AMX_NATIVE_CALL n_SvEffectCreateChorus(AMX* amx, cell* params);
 	static cell AMX_NATIVE_CALL n_SvEffectCreateCompressor(AMX* amx, cell* params);
 	static cell AMX_NATIVE_CALL n_SvEffectCreateDistortion(AMX* amx, cell* params);
@@ -349,6 +393,20 @@ private:
 	static cell AMX_NATIVE_CALL n_SvEffectAttachStream(AMX* amx, cell* params);
 	static cell AMX_NATIVE_CALL n_SvEffectDetachStream(AMX* amx, cell* params);
 	static cell AMX_NATIVE_CALL n_SvEffectDelete(AMX* amx, cell* params);
+	static cell AMX_NATIVE_CALL n_SvEffectAppendFilter(AMX* amx, cell* params);
+	static cell AMX_NATIVE_CALL n_SvEffectRemoveFilter(AMX* amx, cell* params);
+	static cell AMX_NATIVE_CALL n_SvSetIcon(AMX* amx, cell* params);
+
+	static cell AMX_NATIVE_CALL n_SvEnableTransiter(AMX* amx, cell* params);
+	static cell AMX_NATIVE_CALL n_SvDisableTransiter(AMX* amx, cell* params);
+	static cell AMX_NATIVE_CALL n_SvCheckTransiter(AMX* amx, cell* params);
+
+	static cell AMX_NATIVE_CALL n_SvEnableListener(AMX* amx, cell* params);
+	static cell AMX_NATIVE_CALL n_SvDisableListener(AMX* amx, cell* params);
+	static cell AMX_NATIVE_CALL n_SvCheckListener(AMX* amx, cell* params);
+	static cell AMX_NATIVE_CALL n_SvEnableSpeaker(AMX* amx, cell* params);
+	static cell AMX_NATIVE_CALL n_SvDisableSpeaker(AMX* amx, cell* params);
+	static cell AMX_NATIVE_CALL n_SvCheckSpeaker(AMX* amx, cell* params);
 
 private:
 

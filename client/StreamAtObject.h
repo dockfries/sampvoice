@@ -37,6 +37,7 @@ public:
 public:
 
     void Tick() noexcept override;
+    void SetTarget(BYTE targetType, WORD targetId) override;
 
 private:
 
@@ -44,7 +45,7 @@ private:
 
 private:
 
-    const WORD objectId;
+    WORD objectId;
 
 };
 

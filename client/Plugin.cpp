@@ -16,7 +16,6 @@
 #include <game/CRadar.h>
 #include <game/CWorld.h>
 #include <game/CSprite.h>
-#include <samp/CScoreboard.h>
 #include <util/Path.h>
 #include <util/GameUtil.h>
 #include <util/ImGuiUtil.h>
@@ -76,14 +75,14 @@ bool Plugin::OnPluginLoad(const HMODULE hModule) noexcept
 
 bool Plugin::OnSampLoad(const HMODULE hModule) noexcept
 {
-    Plugin::pAddresses = MakeAddressesBase(reinterpret_cast<DWORD>(hModule));
+    Plugin::sampBaseAddr = reinterpret_cast<DWORD>(hModule);
 
     if (!PluginConfig::Load(Path() / SV::kConfigFileName))
     {
         Logger::LogToFile("[sv:err:plugin] : failed to load configs");
     }
 
-    if (!Samp::Init(*Plugin::pAddresses))
+    if (!Samp::Init(Plugin::sampBaseAddr))
     {
         Logger::LogToFile("[sv:err:plugin] : failed to init samp");
         Render::Free();
@@ -94,7 +93,7 @@ bool Plugin::OnSampLoad(const HMODULE hModule) noexcept
     Samp::AddLoadCallback(Plugin::OnInitGame);
     Samp::AddExitCallback(Plugin::OnExitGame);
 
-    if (!Network::Init(*Plugin::pAddresses))
+    if (!Network::Init())
     {
         Logger::LogToFile("[sv:err:plugin] : failed to init network");
         Samp::Free();
@@ -108,7 +107,7 @@ bool Plugin::OnSampLoad(const HMODULE hModule) noexcept
     Network::AddSvInitCallback(Plugin::PluginInitHandler);
     Network::AddDisconnectCallback(Plugin::DisconnectHandler);
 
-    if (!Playback::Init(*Plugin::pAddresses))
+    if (!Playback::Init())
     {
         Logger::LogToFile("[sv:err:plugin] : failed to init playback");
         Network::Free();
@@ -125,7 +124,7 @@ void Plugin::OnInitGame() noexcept
 {
     Plugin::drawRadarHook = MakeCallHook(0x58FC53, Plugin::DrawRadarHook);
 
-    GameUtil::DisableAntiCheat(*Plugin::pAddresses);
+    GameUtil::DisableAntiCheat();
 
     SpeakerList::Show();
     MicroIcon::Show();
@@ -273,7 +272,7 @@ void Plugin::ConnectHandler(const std::string& serverIp, const WORD serverPort)
 
     if (!BlackList::Load(Plugin::blacklistFilePath))
         Logger::LogToFile("[sv:err:plugin] : failed to open blacklist file");
-    if (!BlackList::Init(*Plugin::pAddresses))
+    if (!BlackList::Init())
         Logger::LogToFile("[sv:err:plugin] : failed to init blacklist");
 }
 
@@ -538,6 +537,59 @@ void Plugin::ControlPacketHandler(const ControlPacket& controlPacket)
 
             iter->second->EffectDelete(stData.effect);
         } break;
+        case SV::ControlPacketType::setStreamIcon:
+        {
+            const auto& stData = *reinterpret_cast<const SV::SetStreamIconPacket*>(controlPacket.data);
+            if (controlPacket.length < sizeof(stData)) break;
+
+            const uint32_t iconLen = controlPacket.length - sizeof(stData);
+            const std::string iconName(stData.name, iconLen > 0 ? iconLen - 1 : 0);
+
+            Logger::LogToFile("[sv:dbg:plugin:setStreamIcon] : stream(%u), icon(%s)",
+                stData.stream, iconName.c_str());
+
+            SpeakerList::UpdateIcon(stData.stream, iconName);
+
+            const auto streamIt = Plugin::streamTable.find(stData.stream);
+            if (streamIt != Plugin::streamTable.end())
+            {
+                IDirect3DTexture9* iconTex = nullptr;
+                if (!iconName.empty())
+                    iconTex = SpeakerList::GetIconTexture(iconName);
+                SpeakerList::SetStreamIcon(streamIt->second.get(), iconTex);
+            }
+        } break;
+        case SV::ControlPacketType::appendFilter:
+        {
+            const auto& stData = *reinterpret_cast<const SV::AppendFilterPacket*>(controlPacket.data);
+            if (controlPacket.length < sizeof(stData)) break;
+
+            const auto iter = Plugin::streamTable.find(stData.stream);
+            if (iter == Plugin::streamTable.end()) break;
+
+            iter->second->EffectAppendFilter(stData.effect, stData.number, stData.priority,
+                stData.params, controlPacket.length - sizeof(stData));
+        } break;
+        case SV::ControlPacketType::removeFilter:
+        {
+            const auto& stData = *reinterpret_cast<const SV::RemoveFilterPacket*>(controlPacket.data);
+            if (controlPacket.length < sizeof(stData)) break;
+
+            const auto iter = Plugin::streamTable.find(stData.stream);
+            if (iter == Plugin::streamTable.end()) break;
+
+            iter->second->EffectRemoveFilter(stData.effect, stData.number, stData.priority);
+        } break;
+        case SV::ControlPacketType::updateStreamTarget:
+        {
+            const auto& stData = *reinterpret_cast<const SV::UpdateStreamTargetPacket*>(controlPacket.data);
+            if (controlPacket.length < sizeof(stData)) break;
+
+            const auto iter = Plugin::streamTable.find(stData.stream);
+            if (iter == Plugin::streamTable.end()) break;
+
+            iter->second->SetTarget(stData.targetType, stData.targetId);
+        } break;
     }
 }
 
@@ -586,11 +638,11 @@ void Plugin::OnDeviceInit(IDirect3D9* const pDirect,
 
     ImGuiUtil::Init(pDevice);
 
-    SpeakerList::Init(pDevice, *Plugin::pAddresses,
+    SpeakerList::Init(pDevice,
         Resource(Plugin::pModuleHandle, SpeakerIconResource),
         Resource(Plugin::pModuleHandle, FontResource));
 
-    PluginMenu::Init(pDevice, *Plugin::pAddresses,
+    PluginMenu::Init(pDevice,
         Resource(Plugin::pModuleHandle, BlurShaderResource),
         Resource(Plugin::pModuleHandle, LogoIconResource),
         Resource(Plugin::pModuleHandle, FontResource));
@@ -632,11 +684,11 @@ void Plugin::OnAfterReset(IDirect3DDevice9* const pDevice,
 
     ImGuiUtil::Init(pDevice);
 
-    SpeakerList::Init(pDevice, *Plugin::pAddresses,
+    SpeakerList::Init(pDevice,
         Resource(Plugin::pModuleHandle, SpeakerIconResource),
         Resource(Plugin::pModuleHandle, FontResource));
 
-    PluginMenu::Init(pDevice, *Plugin::pAddresses,
+    PluginMenu::Init(pDevice,
         Resource(Plugin::pModuleHandle, BlurShaderResource),
         Resource(Plugin::pModuleHandle, LogoIconResource),
         Resource(Plugin::pModuleHandle, FontResource));
@@ -663,7 +715,7 @@ void Plugin::DrawRadarHook()
 }
 
 HMODULE Plugin::pModuleHandle { NULL };
-AddressesBasePtr Plugin::pAddresses { nullptr };
+DWORD Plugin::sampBaseAddr { 0 };
 
 bool Plugin::muteStatus { false };
 bool Plugin::recordStatus { false };

@@ -1,18 +1,9 @@
-/*
-	This is a SampVoice project file
-	Author: CyberMor <cyber.mor.2020@gmail.ru>
-	open.mp version author: AmyrAhmady (iAmir) <hhm6@yahoo.com>
-
-	See more here https://github.com/AmyrAhmady/sampvoice
-
-	Copyright (c) Daniel (CyberMor) 2020 All rights reserved
-*/
-
 #pragma once
 
 #include <atomic>
 #include <cstdint>
-#include <set>
+#include <map>
+#include <shared_mutex>
 
 #include "Stream.h"
 
@@ -23,6 +14,8 @@ struct PlayerInfo {
 	PlayerInfo(PlayerInfo&&) = delete;
 	PlayerInfo& operator=(const PlayerInfo&) = delete;
 	PlayerInfo& operator=(PlayerInfo&&) = delete;
+
+	static constexpr uint32_t kAllChannels = 0xFFFFFFFF;
 
 public:
 
@@ -38,8 +31,13 @@ public:
 
 	std::atomic_bool muteStatus{ false };
 	std::atomic_bool recordStatus{ false };
+	std::atomic_bool speakerEnabled{ true };
+	std::atomic_bool listenerEnabled{ true };
+	std::atomic<uint32_t> activeChannels{ 0 };
+	std::atomic<uint32_t> enabledChannels{ kAllChannels };
+	mutable std::shared_mutex streamsMutex;
 	std::set<Stream*> listenerStreams;
-	std::set<Stream*> speakerStreams;
-	std::set<uint8_t> keys;
+	std::map<Stream*, uint32_t> speakerStreams;
+	std::map<uint8_t, uint32_t> keys;
 
 };

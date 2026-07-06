@@ -13,6 +13,12 @@
 
 #include <cassert>
 #include <algorithm>
+#include <cstring>
+
+#include <d3dx9.h>
+
+#include <util/Storage.h>
+#include <util/Logger.h>
 
 #include <game/CPed.h>
 #include <game/CSprite.h>
@@ -24,7 +30,7 @@
 
 #include "PluginConfig.h"
 
-bool SpeakerList::Init(IDirect3DDevice9* const pDevice, const AddressesBase& addrBase,
+bool SpeakerList::Init(IDirect3DDevice9* const pDevice,
     const Resource& rSpeakerIcon, const Resource& rSpeakerFont) noexcept
 {
     if (pDevice == nullptr)
@@ -71,6 +77,8 @@ bool SpeakerList::Init(IDirect3DDevice9* const pDevice, const AddressesBase& add
         SpeakerList::ResetConfigs();
     }
 
+    SpeakerList::LoadIconTextures(pDevice);
+
     iconResetScope.Release();
 
     SpeakerList::initStatus = true;
@@ -83,6 +91,13 @@ void SpeakerList::Free() noexcept
 {
     if (!SpeakerList::initStatus)
         return;
+
+    for (auto& entry : SpeakerList::iconTextures)
+    {
+        if (entry.second != nullptr)
+            entry.second->Release();
+    }
+    SpeakerList::iconTextures.clear();
 
     SpeakerList::tSpeakerIcon.reset();
     delete SpeakerList::pSpeakerFont;
@@ -110,10 +125,10 @@ void SpeakerList::Render()
     if (!SpeakerList::initStatus || !SpeakerList::showStatus)
         return;
 
-    const auto pNetGame = SAMP::pNetGame();
+    const auto pNetGame = sv::RefNetGame();
     if (pNetGame == nullptr) return;
 
-    const auto pPlayerPool = pNetGame->GetPlayerPool();
+    const auto pPlayerPool = pNetGame->m_pPools->m_pPlayer;
     if (pPlayerPool == nullptr) return;
 
     float vLeftIndent { 0.f }, vScrWidth { 0.f }, vScrHeight { 0.f };
@@ -171,11 +186,13 @@ void SpeakerList::Render()
 
         int curTextLine { 0 };
 
-        for (WORD playerId { 0 }; playerId < MAX_PLAYERS; ++playerId)
+        for (WORD playerId { 0 }; playerId < sv::CPlayerPool::MAX_PLAYERS; ++playerId)
         {
             if (curTextLine >= kBaseLinesCount) break;
 
-            if (const auto playerName = pPlayerPool->GetName(playerId); playerName != nullptr)
+            if (pPlayerPool->m_pObject[playerId] == nullptr) continue;
+
+            if (const auto playerName = pPlayerPool->m_pObject[playerId]->m_szNick.c_str(); playerName != nullptr)
             {
                 if (!SpeakerList::playerStreams[playerId].empty())
                 {
@@ -185,11 +202,11 @@ void SpeakerList::Render()
                         {
                             if (GameUtil::IsPlayerVisible(playerId))
                             {
-                                if (const auto pPlayer = pPlayerPool->GetPlayer(playerId); pPlayer != nullptr)
+                                if (const auto pPlayer = pPlayerPool->m_pObject[playerId]->m_pPlayer; pPlayer != nullptr)
                                 {
                                     if (const auto pPlayerPed = pPlayer->m_pPed; pPlayerPed != nullptr)
                                     {
-                                        if (const auto pGamePed = pPlayerPed->m_pGamePed; pGamePed != nullptr)
+                                        if (const auto pGamePed = pPlayerPed->m_pGameEntity; pGamePed != nullptr)
                                         {
                                             const float distanceToCamera = (TheCamera.GetPosition() - pGamePed->GetPosition()).Magnitude();
 
@@ -203,7 +220,7 @@ void SpeakerList::Render()
                                                 float width, height;
                                                 RwV3d playerPos, screenPos;
 
-                                                pGamePed->GetBonePosition(playerPos, 1, false);
+                                                static_cast<::CPed*>(pGamePed)->GetBonePosition(playerPos, 1, false);
                                                 playerPos.z += 1.f;
 
                                                 if (CSprite::CalcScreenCoors(playerPos, &screenPos, &width, &height, true, true))
@@ -234,8 +251,19 @@ void SpeakerList::Render()
 
                     const auto color = ImGui::ColorConvertU32ToFloat4(0x00ffffff | alphaLevel);
 
-                    ImGui::Image(SpeakerList::tSpeakerIcon->GetTexture(), { ImGui::GetTextLineHeight(),
-                        ImGui::GetTextLineHeight() }, { 0, 0 }, { 1, 1 }, color);
+                    {
+                        IDirect3DTexture9* iconTex = SpeakerList::tSpeakerIcon->GetTexture();
+                        for (const auto& si : SpeakerList::playerStreams[playerId])
+                        {
+                            if (si.second.GetIconTexture() != nullptr)
+                            {
+                                iconTex = si.second.GetIconTexture();
+                                break;
+                            }
+                        }
+                        ImGui::Image(iconTex, { ImGui::GetTextLineHeight(),
+                            ImGui::GetTextLineHeight() }, { 0, 0 }, { 1, 1 }, color);
+                    }
 
                     ImGui::NextColumn();
 
@@ -319,9 +347,76 @@ void SpeakerList::ResetConfigs() noexcept
     PluginConfig::SetSpeakerIconScale(PluginConfig::kDefValSpeakerIconScale);
 }
 
+void SpeakerList::UpdateIcon(const uint32_t streamId, const std::string& icon)
+{
+    Logger::LogToFile("[sv:dbg:speakerlist:updateicon] : stream(%u), icon(%s)",
+        streamId, icon.c_str());
+
+    SpeakerList::streamIconNames[streamId] = icon;
+}
+
+void SpeakerList::SetStreamIcon(Stream* const stream, IDirect3DTexture9* const texture)
+{
+    for (auto& playerEntry : SpeakerList::playerStreams)
+    {
+        for (auto& streamEntry : playerEntry)
+        {
+            if (streamEntry.first == stream)
+            {
+                streamEntry.second.iconTexture = texture;
+            }
+        }
+    }
+}
+
+IDirect3DTexture9* SpeakerList::GetIconTexture(const std::string& name)
+{
+    const auto it = SpeakerList::iconTextures.find(name);
+    return it != SpeakerList::iconTextures.end() ? it->second : nullptr;
+}
+
+std::map<std::string, IDirect3DTexture9*>& SpeakerList::GetIconTextures()
+{
+    return SpeakerList::iconTextures;
+}
+
+void SpeakerList::LoadIconTextures(IDirect3DDevice9* pDevice)
+{
+    Storage::ForEachFile([pDevice](const std::string& filePath) -> void
+    {
+        constexpr const char kPngExt[] = ".png";
+        const size_t pathLen = filePath.size();
+        if (pathLen > 4 && _stricmp(filePath.c_str() + pathLen - 4, kPngExt) == 0)
+        {
+            auto fileData = Storage::ReadFile(filePath);
+            if (!fileData.empty())
+            {
+                IDirect3DTexture9* pTex = nullptr;
+                if (SUCCEEDED(D3DXCreateTextureFromFileInMemory(pDevice,
+                    fileData.data(), static_cast<UINT>(fileData.size()), &pTex)))
+                {
+                    size_t slashPos = filePath.find_last_of('\\');
+                    size_t dotPos = filePath.find_last_of('.');
+                    if (slashPos != std::string::npos && dotPos > slashPos)
+                    {
+                        std::string iconName = filePath.substr(slashPos + 1, dotPos - slashPos - 1);
+                        SpeakerList::iconTextures[iconName] = pTex;
+                        Logger::LogToFile("[sv:dbg:speakerlist:init] : loaded icon '%s' (tex:%p)",
+                            iconName.c_str(), pTex);
+                    }
+                    else
+                    {
+                        pTex->Release();
+                    }
+                }
+            }
+        }
+    });
+}
+
 void SpeakerList::OnSpeakerPlay(const Stream& stream, const WORD speaker) noexcept
 {
-    if (speaker != std::clamp<WORD>(speaker, 0, MAX_PLAYERS - 1))
+    if (speaker != std::clamp<WORD>(speaker, 0, sv::CPlayerPool::MAX_PLAYERS - 1))
         return;
 
     SpeakerList::playerStreams[speaker][(Stream*)(&stream)] = stream.GetInfo();
@@ -329,7 +424,7 @@ void SpeakerList::OnSpeakerPlay(const Stream& stream, const WORD speaker) noexce
 
 void SpeakerList::OnSpeakerStop(const Stream& stream, const WORD speaker) noexcept
 {
-    if (speaker != std::clamp<WORD>(speaker, 0, MAX_PLAYERS - 1))
+    if (speaker != std::clamp<WORD>(speaker, 0, sv::CPlayerPool::MAX_PLAYERS - 1))
         return;
 
     SpeakerList::playerStreams[speaker].erase((Stream*)(&stream));
@@ -341,4 +436,8 @@ bool SpeakerList::showStatus { false };
 ImFont* SpeakerList::pSpeakerFont { nullptr };
 TexturePtr SpeakerList::tSpeakerIcon { nullptr };
 
-std::array<std::unordered_map<Stream*, StreamInfo>, MAX_PLAYERS> SpeakerList::playerStreams;
+std::array<std::unordered_map<Stream*, StreamInfo>, sv::CPlayerPool::MAX_PLAYERS> SpeakerList::playerStreams;
+
+std::map<uint32_t, TexturePtr> SpeakerList::streamIcons;
+std::map<uint32_t, std::string> SpeakerList::streamIconNames;
+std::map<std::string, IDirect3DTexture9*> SpeakerList::iconTextures;

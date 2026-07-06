@@ -1,8 +1,7 @@
 #include "StreamAtObject.h"
 
 #include <audio/bass.h>
-#include <samp/CNetGame.h>
-#include <game/CObject.h>
+#include <svapi.h>
 
 #include "StreamInfo.h"
 
@@ -16,30 +15,32 @@ void StreamAtObject::Tick() noexcept
 {
     this->LocalStream::Tick();
 
-    const auto pNetGame = SAMP::pNetGame();
+    const auto pNetGame = sv::RefNetGame();
     if (!pNetGame) return;
 
-    const auto pObjectPool = pNetGame->GetObjectPool();
+    const auto pObjectPool = pNetGame->m_pPools->m_pObject;
     if (!pObjectPool) return;
 
     const auto pObject = pObjectPool->m_pObject[this->objectId];
     if (!pObject) return;
 
-    const auto pObjectEntity = pObject->m_pGameEntity;
-    if (!pObjectEntity) return;
-
-    const auto pObjectMatrix = pObjectEntity->GetMatrix();
-    if (!pObjectMatrix) return;
+    sampapi::CMatrix matrix;
+    pObject->GetMatrix(&matrix);
 
     for (const auto& channel : this->GetChannels())
     {
         if (channel->HasSpeaker())
         {
             BASS_ChannelSet3DPosition(channel->GetHandle(),
-                reinterpret_cast<BASS_3DVECTOR*>(&pObjectMatrix->pos),
+                reinterpret_cast<BASS_3DVECTOR*>(&matrix.pos),
                 nullptr, nullptr);
         }
     }
+}
+
+void StreamAtObject::SetTarget(const BYTE /*targetType*/, const WORD targetId)
+{
+    this->objectId = targetId;
 }
 
 void StreamAtObject::OnChannelCreate(const Channel& channel) noexcept
@@ -48,22 +49,19 @@ void StreamAtObject::OnChannelCreate(const Channel& channel) noexcept
 
     this->LocalStream::OnChannelCreate(channel);
 
-    const auto pNetGame = SAMP::pNetGame();
+    const auto pNetGame = sv::RefNetGame();
     if (!pNetGame) return;
 
-    const auto pObjectPool = pNetGame->GetObjectPool();
+    const auto pObjectPool = pNetGame->m_pPools->m_pObject;
     if (!pObjectPool) return;
 
     const auto pObject = pObjectPool->m_pObject[this->objectId];
     if (!pObject) return;
 
-    const auto pObjectEntity = pObject->m_pGameEntity;
-    if (!pObjectEntity) return;
-
-    const auto pObjectMatrix = pObjectEntity->GetMatrix();
-    if (!pObjectMatrix) return;
+    sampapi::CMatrix matrix;
+    pObject->GetMatrix(&matrix);
 
     BASS_ChannelSet3DPosition(channel.GetHandle(),
-        reinterpret_cast<BASS_3DVECTOR*>(&pObjectMatrix->pos),
+        reinterpret_cast<BASS_3DVECTOR*>(&matrix.pos),
         &kZeroVector, &kZeroVector);
 }

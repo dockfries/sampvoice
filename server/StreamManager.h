@@ -11,7 +11,7 @@
 #pragma once
 
 #include <set>
-#include <mutex>
+#include <shared_mutex>
 
 #include "Stream.h"
 
@@ -23,5 +23,5 @@ public:
 
 private:
     static std::set<Stream*> streams_;
-    static std::mutex mutex_;
+    static std::shared_mutex mutex_;
 };

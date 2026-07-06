@@ -18,5 +18,5 @@ bool DynamicStream::DetachListener(uint16_t) noexcept { return false; }
 
 std::vector<uint16_t> DynamicStream::DetachAllListeners() noexcept
 {
-	return std::vector<uint16_t>();
+	return Stream::DetachAllListeners();
 }

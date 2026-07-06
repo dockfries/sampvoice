@@ -22,7 +22,6 @@
 #include <SPSCQueue.h>
 #include <raknet/bitstream.h>
 #include <raknet/rakclient.h>
-#include <util/AddressesBase.h>
 #include <util/Timer.h>
 
 #include "ControlPacket.h"
@@ -70,7 +69,7 @@ private:
 
 public:
 
-    static bool Init(const AddressesBase& addrBase) noexcept;
+    static bool Init() noexcept;
     static void Free() noexcept;
 
     static bool SendControlPacket(WORD packet, LPCVOID dataAddr = nullptr, WORD dataSize = 0) noexcept;

@@ -36,7 +36,7 @@ DynamicLocalStreamAtPlayer::DynamicLocalStreamAtPlayer(
 
 	PackWrap(this->packetCreateStream, SV::ControlPacketType::createLStreamAtPlayer, sizeof(SV::CreateLStreamAtPacket) + nameLength);
 
-	PackGetStruct(&*this->packetCreateStream, SV::CreateLStreamAtPacket)->stream = reinterpret_cast<uint32_t>(static_cast<Stream*>(this));
+	PackGetStruct(&*this->packetCreateStream, SV::CreateLStreamAtPacket)->stream = this->streamId;
 	std::memcpy(PackGetStruct(&*this->packetCreateStream, SV::CreateLStreamAtPacket)->name, nameString, nameLength);
 	PackGetStruct(&*this->packetCreateStream, SV::CreateLStreamAtPacket)->distance = distance;
 	PackGetStruct(&*this->packetCreateStream, SV::CreateLStreamAtPacket)->target = playerId;
@@ -51,13 +51,15 @@ DynamicLocalStreamAtPlayer::DynamicLocalStreamAtPlayer(
 
 		for (IPlayer* other : PlayerStore::internalPlayerPool)
 		{
-			float distanceToPlayer = glm::distance(other->getPosition(), streamPosition);
+			Vector3 diff = other->getPosition() - streamPosition;
+			float distSq = glm::dot(diff, diff);
+			float maxDistSq = distance * distance;
 
 			if (other != player && PlayerStore::IsPlayerHasPlugin(other->getID()))
 			{
-				if (distanceToPlayer <= distance && player->getInterior() == other->getInterior() && player->getVirtualWorld() == other->getVirtualWorld())
+				if (distSq <= maxDistSq && player->getInterior() == other->getInterior() && player->getVirtualWorld() == other->getVirtualWorld())
 				{
-					playerList.emplace(distanceToPlayer, other->getID());
+					playerList.emplace(glm::sqrt(distSq), other->getID());
 				}
 			}
 		}
@@ -84,20 +86,22 @@ void DynamicLocalStreamAtPlayer::Tick()
 	{
 		PlayerSortList playerList;
 
-		const Vector3& streamPosition = player->getPosition();
+		const Vector3& streamPosition = PlayerStore::cachedPositions[playerId];
 		const float streamDistance = PackGetStruct(&*this->packetStreamUpdateDistance, SV::UpdateLStreamDistancePacket)->distance;
 
 		for (IPlayer* other : PlayerStore::internalPlayerPool)
 		{
-			float distanceToPlayer = glm::distance(other->getPosition(), streamPosition);
+			Vector3 diff = PlayerStore::cachedPositions[other->getID()] - streamPosition;
+			float distSq = glm::dot(diff, diff);
+			float maxDistSq = streamDistance * streamDistance;
 
 			if (other != player && PlayerStore::IsPlayerHasPlugin(other->getID()))
 			{
-				if (distanceToPlayer <= streamDistance && player->getInterior() == other->getInterior() && player->getVirtualWorld() == other->getVirtualWorld())
+				if (distSq <= maxDistSq && player->getInterior() == other->getInterior() && player->getVirtualWorld() == other->getVirtualWorld())
 				{
 					if (!this->HasListener(other->getID()))
 					{
-						playerList.emplace(distanceToPlayer, other->getID());
+						playerList.emplace(glm::sqrt(distSq), other->getID());
 					}
 				}
 				else if (this->HasListener(other->getID()))

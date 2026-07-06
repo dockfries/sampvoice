@@ -39,6 +39,7 @@ public:
 public:
 
     void SetPosition(const CVector& position) noexcept;
+    void SetTarget(BYTE targetType, WORD targetId) override;
 
 private:
 

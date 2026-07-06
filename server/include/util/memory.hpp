@@ -223,31 +223,6 @@ namespace Memory
 
 		return true;
 	}
-
-	static inline float qsqrt(const float number) noexcept
-	{
-		float result;
-
-#ifdef _WIN32
-		__asm {
-			mov eax, number
-			sub eax, 0x3f800000
-			sar eax, 1
-			add eax, 0x3f800000
-			mov result, eax
-		}
-#else
-		__asm__ __volatile__(
-			"subl $0x3f800000, %1\n\t"
-			"sarl $1, %1\n\t"
-			"addl $0x3f800000, %1"
-			: "=a"(result)
-			: "a"(number)
-		);
-#endif
-
-		return result;
-	}
 }
 
 #define MakeObjectContainer(ObjectType) std::make_unique<Memory::ObjectContainer<ObjectType>>

@@ -2,61 +2,118 @@ name: Build
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - 'master'
-  pull_request:
-    branches:
-      - '*'
-      - '*/*'
-      - '**'
 
 jobs:
-  build-windows-release:
+  build-windows:
+    strategy:
+      matrix:
+        arch: [Win32, x64]
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           clean: true
           submodules: recursive
           fetch-depth: 0
 
-      - name: Install CMake
-        uses: lukka/get-cmake@latest
+      - uses: TheMrMilchmann/setup-msvc-dev@v4
         with:
-          cmakeVersion: '3.23.2'
+          arch: ${{ matrix.arch == 'x64' && 'amd64' || 'x86' }}
 
-      - name: Generate build files
-        run: |
-          mkdir build
-          cd build
-          cmake -DCMAKE_BUILD_TYPE=Release .. -A Win32
-          cmake --build . --config Release
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: sampvoice-win-release.zip
-          path: build/server/Release/sampvoice.dll
-
-  build-linux-release:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          clean: true
-          submodules: recursive
-          fetch-depth: 0
+      - uses: lukka/get-cmake@latest
 
       - name: Build
         run: |
-          cd docker
-          chmod +x ./build.sh
-          chmod +x ./docker-entrypoint.sh
-          ./build.sh
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_POLICY_VERSION_MINIMUM=3.5" -B build -S .
+          cmake --build build
+
+      - name: Prepare package
+        run: |
+          mkdir package -Force
+          Copy-Item "build/server/sampvoice.dll" "package/"
+          Copy-Item "server/sampvoice.inc" "package/"
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: sampvoice-linux-release.zip
-          path: docker/build/server/sampvoice.so
+          name: sampvoice-win-${{ matrix.arch }}-Release
+          path: package/
+
+  build-windows-client:
+    strategy:
+      matrix:
+        version: [r1, r3, r5, dl]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          clean: true
+          submodules: recursive
+          fetch-depth: 0
+
+      - uses: TheMrMilchmann/setup-msvc-dev@v4
+        with:
+          arch: x86
+
+      - uses: lukka/get-cmake@latest
+
+      - name: Install D3DX9 (NuGet)
+        run: nuget install Microsoft.DXSDK.D3DX -Version 9.29.952.8 -OutputDirectory .
+
+      - name: Build client (${{ matrix.version }})
+        run: |
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_POLICY_VERSION_MINIMUM=3.5" -DBUILD_CLIENT=ON -B build_client -S .
+          cmake --build build_client --target sampvoice_${{ matrix.version }}
+
+      - name: Prepare client package
+        run: |
+          mkdir package -Force
+          Copy-Item "build_client/client/sampvoice_${{ matrix.version }}.asi" "package/sampvoice.asi"
+          Copy-Item "client/files/binaries/*.dll" "package/"
+          Copy-Item -Recurse "client/files/resources" "package/resources"
+          Copy-Item -Recurse "client/files/languages" "package/languages"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: sampvoice-client-${{ matrix.version }}
+          path: package/
+
+  build-linux:
+    strategy:
+      matrix:
+        bit: [32, 64]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          clean: true
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Install packages
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++-multilib
+
+      - name: Build
+        run: |
+          cmake_flags="-G Ninja -DCMAKE_BUILD_TYPE=Release -B build -S ."
+          if [ "${{ matrix.bit }}" = "32" ]; then
+            cmake_flags="$cmake_flags -DCMAKE_C_FLAGS=-m32 -DCMAKE_CXX_FLAGS=-m32"
+          fi
+          cmake $cmake_flags -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+          cmake --build build
+
+      - name: Prepare package
+        run: |
+          mkdir -p package
+          cp build/server/sampvoice.so package/
+          cp server/sampvoice.inc package/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: sampvoice-linux-${{ matrix.bit == 32 && 'i386' || 'x86_64' }}-Release
+          path: package/

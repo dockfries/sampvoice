@@ -1,15 +1,4 @@
-﻿/*
-    This is a SampVoice project file
-    Author: CyberMor <cyber.mor.2020@gmail.ru>
-    open.mp version author: AmyrAhmady (iAmir) <hhm6@yahoo.com>
-
-    See more here https://github.com/AmyrAhmady/sampvoice
-    Original repository: https://github.com/CyberMor/sampvoice
-
-    Copyright (c) Daniel (CyberMor) 2020 All rights reserved
-*/
-
-#pragma once
+﻿#pragma once
 
 #include <cstdint>
 #include <functional>
@@ -17,10 +6,9 @@
 
 #include <d3d9.h>
 
-#include <samp/Commands.h>
-
 #include "Memory.hpp"
-#include "AddressesBase.h"
+
+using CMDPROC = void(__cdecl*)(const char*);
 
 class Samp {
 
@@ -38,12 +26,12 @@ private:
 
 public:
 
-    static bool Init(const AddressesBase& addrBase) noexcept;
+    static bool Init(DWORD sampBaseAddr) noexcept;
     static bool IsInited() noexcept;
     static bool IsLoaded() noexcept;
     static void Free() noexcept;
 
-    static void AddClientCommand(const char* cmdName, SAMP::CMDPROC cmdHandler) noexcept;
+    static void AddClientCommand(const char* cmdName, CMDPROC cmdHandler) noexcept;
     static void AddMessageToChat(D3DCOLOR color, const char* message) noexcept;
     static void ToggleSampCursor(int mode) noexcept;
 

@@ -21,7 +21,6 @@
 
 #include <raknet/bitstream.h>
 #include <raknet/rakclient.h>
-#include <util/AddressesBase.h>
 
 #include "resources/resource.h"
 
@@ -68,7 +67,7 @@ private:
 private:
 
     static HMODULE pModuleHandle;
-    static AddressesBasePtr pAddresses;
+    static DWORD sampBaseAddr;
 
     static bool muteStatus;
     static bool recordStatus;

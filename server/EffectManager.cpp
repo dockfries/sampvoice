@@ -9,21 +9,22 @@
 */
 
 #include "EffectManager.h"
+#include <mutex>
 
 void EffectManager::RegisterEffect(Effect* effect) {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::unique_lock lock(mutex_);
     effects_.insert(effect);
 }
 
 void EffectManager::UnregisterEffect(Effect* effect) {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::unique_lock lock(mutex_);
     effects_.erase(effect);
 }
 
 bool EffectManager::IsValidEffect(Effect* effect) {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::shared_lock lock(mutex_);
     return effects_.find(effect) != effects_.end();
 }
 
 std::set<Effect*> EffectManager::effects_;
-std::mutex EffectManager::mutex_;
+std::shared_mutex EffectManager::mutex_;

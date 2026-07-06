@@ -14,13 +14,16 @@
 #include <list>
 #include <array>
 #include <unordered_map>
+#include <map>
 
 #include <Windows.h>
 #include <d3d9.h>
+#include <rpc.h>
+#include <d3dx9.h>
 
 #include <imgui/imgui.h>
-#include <samp/CNetGame.h>
-#include <util/AddressesBase.h>
+
+#include <svapi.h>
 #include <util/Resource.h>
 #include <util/Texture.h>
 
@@ -44,7 +47,7 @@ private:
 
 public:
 
-    static bool Init(IDirect3DDevice9* pDevice, const AddressesBase& addrBase,
+    static bool Init(IDirect3DDevice9* pDevice,
         const Resource& rSpeakerIcon, const Resource& rSpeakerFont) noexcept;
     static void Free() noexcept;
 
@@ -70,6 +73,15 @@ public:
     static void OnSpeakerPlay(const Stream& stream, WORD speaker) noexcept;
     static void OnSpeakerStop(const Stream& stream, WORD speaker) noexcept;
 
+    static void UpdateIcon(uint32_t streamId, const std::string& icon);
+
+    static void SetStreamIcon(Stream* stream, IDirect3DTexture9* texture);
+    static IDirect3DTexture9* GetIconTexture(const std::string& name);
+    static std::map<std::string, IDirect3DTexture9*>& GetIconTextures();
+
+    static std::map<uint32_t, std::string> streamIconNames;
+    static std::map<uint32_t, TexturePtr> streamIcons;
+
 private:
 
     static bool initStatus;
@@ -78,6 +90,10 @@ private:
     static ImFont* pSpeakerFont;
     static TexturePtr tSpeakerIcon;
 
-    static std::array<std::unordered_map<Stream*, StreamInfo>, MAX_PLAYERS> playerStreams;
+    static std::array<std::unordered_map<Stream*, StreamInfo>, sv::CPlayerPool::MAX_PLAYERS> playerStreams;
+
+    static std::map<std::string, IDirect3DTexture9*> iconTextures;
+
+    static void LoadIconTextures(IDirect3DDevice9* pDevice);
 
 };

@@ -27,8 +27,8 @@ void PlayerStore::AddPlayerToStore(const uint16_t playerId, const uint8_t versio
 			for (const auto stream : pOldPlayerInfo->listenerStreams)
 				stream->DetachListener(playerId);
 
-			for (const auto stream : pOldPlayerInfo->speakerStreams)
-				stream->DetachSpeaker(playerId);
+			for (const auto& pair : pOldPlayerInfo->speakerStreams)
+				pair.first->DetachSpeaker(playerId);
 
 			delete pOldPlayerInfo;
 		}
@@ -59,8 +59,8 @@ void PlayerStore::RemovePlayerFromStore(const uint16_t playerId)
 		for (const auto stream : pPlayerInfo->listenerStreams)
 			stream->DetachListener(playerId);
 
-		for (const auto stream : pPlayerInfo->speakerStreams)
-			stream->DetachSpeaker(playerId);
+		for (const auto& pair : pPlayerInfo->speakerStreams)
+			pair.first->DetachSpeaker(playerId);
 
 		delete pPlayerInfo;
 	}
@@ -135,3 +135,4 @@ void PlayerStore::ReleasePlayerWithUniqueAccess(const uint16_t playerId) noexcep
 std::array<std::shared_mutex, PLAYER_POOL_SIZE> PlayerStore::playerMutex;
 std::array<std::atomic<PlayerInfo*>, PLAYER_POOL_SIZE> PlayerStore::playerInfo{};
 FlatPtrHashSet<IPlayer> PlayerStore::internalPlayerPool;
+std::array<Vector3, PLAYER_POOL_SIZE> PlayerStore::cachedPositions{};

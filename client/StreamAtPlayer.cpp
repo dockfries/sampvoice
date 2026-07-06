@@ -1,8 +1,7 @@
 #include "StreamAtPlayer.h"
 
 #include <audio/bass.h>
-#include <samp/CNetGame.h>
-#include <game/CPed.h>
+#include <svapi.h>
 
 #include "StreamInfo.h"
 
@@ -16,33 +15,38 @@ void StreamAtPlayer::Tick() noexcept
 {
     this->LocalStream::Tick();
 
-    const auto pNetGame = SAMP::pNetGame();
+    const auto pNetGame = sv::RefNetGame();
     if (!pNetGame) return;
 
-    const auto pPlayerPool = pNetGame->GetPlayerPool();
+    const auto pPlayerPool = pNetGame->m_pPools->m_pPlayer;
     if (!pPlayerPool) return;
 
-    const auto pPlayer = pPlayerPool->GetPlayer(this->playerId);
+    const auto pPlayerInfo = pPlayerPool->m_pObject[this->playerId];
+    if (!pPlayerInfo) return;
+
+    const auto pPlayer = pPlayerInfo->m_pPlayer;
     if (!pPlayer) return;
 
-    const auto pPlayerPed = pPlayer->m_pPed;
-    if (!pPlayerPed) return;
+    const auto pPed = pPlayer->m_pPed;
+    if (!pPed) return;
 
-    const auto pPlayerGamePed = pPlayerPed->m_pGamePed;
-    if (!pPlayerGamePed) return;
-
-    const auto pPlayerMatrix = pPlayerGamePed->GetMatrix();
-    if (!pPlayerMatrix) return;
+    sampapi::CMatrix matrix;
+    pPed->GetMatrix(&matrix);
 
     for (const auto& channel : this->GetChannels())
     {
         if (channel->HasSpeaker())
         {
             BASS_ChannelSet3DPosition(channel->GetHandle(),
-                reinterpret_cast<BASS_3DVECTOR*>(&pPlayerMatrix->pos),
+                reinterpret_cast<BASS_3DVECTOR*>(&matrix.pos),
                 nullptr, nullptr);
         }
     }
+}
+
+void StreamAtPlayer::SetTarget(const BYTE /*targetType*/, const WORD targetId)
+{
+    this->playerId = targetId;
 }
 
 void StreamAtPlayer::OnChannelCreate(const Channel& channel) noexcept
@@ -51,25 +55,25 @@ void StreamAtPlayer::OnChannelCreate(const Channel& channel) noexcept
 
     this->LocalStream::OnChannelCreate(channel);
 
-    const auto pNetGame = SAMP::pNetGame();
+    const auto pNetGame = sv::RefNetGame();
     if (!pNetGame) return;
 
-    const auto pPlayerPool = pNetGame->GetPlayerPool();
+    const auto pPlayerPool = pNetGame->m_pPools->m_pPlayer;
     if (!pPlayerPool) return;
 
-    const auto pPlayer = pPlayerPool->GetPlayer(this->playerId);
+    const auto pPlayerInfo = pPlayerPool->m_pObject[this->playerId];
+    if (!pPlayerInfo) return;
+
+    const auto pPlayer = pPlayerInfo->m_pPlayer;
     if (!pPlayer) return;
 
-    const auto pPlayerPed = pPlayer->m_pPed;
-    if (!pPlayerPed) return;
+    const auto pPed = pPlayer->m_pPed;
+    if (!pPed) return;
 
-    const auto pPlayerGamePed = pPlayerPed->m_pGamePed;
-    if (!pPlayerGamePed) return;
-
-    const auto pPlayerMatrix = pPlayerGamePed->GetMatrix();
-    if (!pPlayerMatrix) return;
+    sampapi::CMatrix matrix;
+    pPed->GetMatrix(&matrix);
 
     BASS_ChannelSet3DPosition(channel.GetHandle(),
-        reinterpret_cast<BASS_3DVECTOR*>(&pPlayerMatrix->pos),
+        reinterpret_cast<BASS_3DVECTOR*>(&matrix.pos),
         &kZeroVector, &kZeroVector);
 }

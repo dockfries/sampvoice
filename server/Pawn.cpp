@@ -12,6 +12,7 @@
 
 #include <util/logger.h>
 #include <util/memory.hpp>
+#include "HandleMap.h"
 
 bool Pawn::Init(PawnInterfacePtr pInterface) noexcept
 {
@@ -28,6 +29,8 @@ void Pawn::Free() noexcept
 
 	Pawn::scripts.clear();
 
+	HandleMap::Clear();
+
 	Logger::LogToFile("[sv:dbg:pawn:free] : module released");
 
 	Pawn::pInterface = nullptr;
@@ -42,6 +45,7 @@ void Pawn::RegisterScript(AMX* const amx)
 #define DefineNativeFunction(function) { #function, &Pawn::n_##function }
 
 		DefineNativeFunction(SvDebug),
+		DefineNativeFunction(SvCheckDebug),
 		DefineNativeFunction(SvInit),
 		DefineNativeFunction(SvGetVersion),
 
@@ -49,6 +53,7 @@ void Pawn::RegisterScript(AMX* const amx)
 		DefineNativeFunction(SvStartRecord),
 		DefineNativeFunction(SvStopRecord),
 		DefineNativeFunction(SvAddKey),
+		DefineNativeFunction(SvSetKeyWithChannels),
 		DefineNativeFunction(SvHasKey),
 		DefineNativeFunction(SvRemoveKey),
 		DefineNativeFunction(SvRemoveAllKeys),
@@ -72,6 +77,7 @@ void Pawn::RegisterScript(AMX* const amx)
 		DefineNativeFunction(SvDetachListenerFromStream),
 		DefineNativeFunction(SvDetachAllListenersFromStream),
 		DefineNativeFunction(SvAttachSpeakerToStream),
+		DefineNativeFunction(SvAttachSpeakerToStreamWithChannels),
 		DefineNativeFunction(SvHasSpeakerInStream),
 		DefineNativeFunction(SvDetachSpeakerFromStream),
 		DefineNativeFunction(SvDetachAllSpeakersFromStream),
@@ -83,7 +89,9 @@ void Pawn::RegisterScript(AMX* const amx)
 		DefineNativeFunction(SvStreamParameterSlideTo),
 		DefineNativeFunction(SvStreamParameterSlide),
 		DefineNativeFunction(SvDeleteStream),
+		DefineNativeFunction(SvSetStreamTarget),
 
+		DefineNativeFunction(SvEffectCreate),
 		DefineNativeFunction(SvEffectCreateChorus),
 		DefineNativeFunction(SvEffectCreateCompressor),
 		DefineNativeFunction(SvEffectCreateDistortion),
@@ -95,7 +103,19 @@ void Pawn::RegisterScript(AMX* const amx)
 		DefineNativeFunction(SvEffectCreateReverb),
 		DefineNativeFunction(SvEffectAttachStream),
 		DefineNativeFunction(SvEffectDetachStream),
-		DefineNativeFunction(SvEffectDelete)
+		DefineNativeFunction(SvEffectDelete),
+		DefineNativeFunction(SvEffectAppendFilter),
+		DefineNativeFunction(SvEffectRemoveFilter),
+		DefineNativeFunction(SvSetIcon),
+		DefineNativeFunction(SvEnableTransiter),
+		DefineNativeFunction(SvDisableTransiter),
+		DefineNativeFunction(SvCheckTransiter),
+		DefineNativeFunction(SvEnableListener),
+		DefineNativeFunction(SvDisableListener),
+		DefineNativeFunction(SvCheckListener),
+		DefineNativeFunction(SvEnableSpeaker),
+		DefineNativeFunction(SvDisableSpeaker),
+		DefineNativeFunction(SvCheckSpeaker)
 
 #undef  DefineNativeFunction
 	};
@@ -153,6 +173,14 @@ cell AMX_NATIVE_CALL Pawn::n_SvDebug(AMX* const amx, cell* const params)
 	);
 
 	return NULL;
+}
+
+cell AMX_NATIVE_CALL Pawn::n_SvCheckDebug(AMX* const amx, cell* const params)
+{
+	if (Pawn::pInterface == nullptr) return false;
+	if (params[0] != 0 * sizeof(cell)) return false;
+
+	return Pawn::debugStatus;
 }
 
 cell AMX_NATIVE_CALL Pawn::n_SvInit(AMX* const amx, cell* const params)
@@ -253,6 +281,24 @@ cell AMX_NATIVE_CALL Pawn::n_SvAddKey(AMX* const amx, cell* const params)
 		"[sv:dbg:pawn:SvAddKey] : playerid(%hu), keyid(0x%hhx) : return(%hhu)",
 		playerid, keyid, result
 	);
+
+	return result;
+}
+
+cell AMX_NATIVE_CALL Pawn::n_SvSetKeyWithChannels(AMX* const amx, cell* const params)
+{
+	if (Pawn::pInterface == nullptr) return false;
+	if (params[0] != 3 * sizeof(cell)) return false;
+
+	const auto playerid = static_cast<uint16_t>(params[1]);
+	const auto keyid = static_cast<uint8_t>(params[2]);
+	const auto channelMask = static_cast<uint32_t>(params[3]);
+
+	const auto result = Pawn::pInterface->SvSetKeyWithChannels(playerid, keyid, channelMask);
+
+	if (Pawn::debugStatus) Logger::Log(
+		"[sv:dbg:pawn:SvSetKeyWithChannels] : playerid(%hu), keyid(0x%hhx), mask(0x%x) : return(%hhu)",
+		playerid, keyid, channelMask, result);
 
 	return result;
 }
@@ -377,7 +423,7 @@ cell AMX_NATIVE_CALL Pawn::n_SvCreateGStream(AMX* const amx, cell* const params)
 		color, name.c_str(), result
 	);
 
-	return reinterpret_cast<cell>(result);
+	return HandleMap::Store(result);
 }
 
 cell AMX_NATIVE_CALL Pawn::n_SvCreateSLStreamAtPoint(AMX* const amx, cell* const params)
@@ -404,7 +450,7 @@ cell AMX_NATIVE_CALL Pawn::n_SvCreateSLStreamAtPoint(AMX* const amx, cell* const
 		distance, posx, posy, posz, color, name.c_str(), result
 	);
 
-	return reinterpret_cast<cell>(result);
+	return HandleMap::Store(result);
 }
 
 cell AMX_NATIVE_CALL Pawn::n_SvCreateSLStreamAtVehicle(AMX* const amx, cell* const params)
@@ -429,7 +475,7 @@ cell AMX_NATIVE_CALL Pawn::n_SvCreateSLStreamAtVehicle(AMX* const amx, cell* con
 		distance, vehicleid, color, name.c_str(), result
 	);
 
-	return reinterpret_cast<cell>(result);
+	return HandleMap::Store(result);
 }
 
 cell AMX_NATIVE_CALL Pawn::n_SvCreateSLStreamAtPlayer(AMX* const amx, cell* const params)
@@ -454,7 +500,7 @@ cell AMX_NATIVE_CALL Pawn::n_SvCreateSLStreamAtPlayer(AMX* const amx, cell* cons
 		distance, playerid, color, name.c_str(), result
 	);
 
-	return reinterpret_cast<cell>(result);
+	return HandleMap::Store(result);
 }
 
 cell AMX_NATIVE_CALL Pawn::n_SvCreateSLStreamAtObject(AMX* const amx, cell* const params)
@@ -479,7 +525,7 @@ cell AMX_NATIVE_CALL Pawn::n_SvCreateSLStreamAtObject(AMX* const amx, cell* cons
 		distance, objectid, color, name.c_str(), result
 	);
 
-	return reinterpret_cast<cell>(result);
+	return HandleMap::Store(result);
 }
 
 cell AMX_NATIVE_CALL Pawn::n_SvCreateDLStreamAtPoint(AMX* const amx, cell* const params)
@@ -507,7 +553,7 @@ cell AMX_NATIVE_CALL Pawn::n_SvCreateDLStreamAtPoint(AMX* const amx, cell* const
 		distance, maxplayers, posx, posy, posz, color, name.c_str(), result
 	);
 
-	return reinterpret_cast<cell>(result);
+	return HandleMap::Store(result);
 }
 
 cell AMX_NATIVE_CALL Pawn::n_SvCreateDLStreamAtVehicle(AMX* const amx, cell* const params)
@@ -533,7 +579,7 @@ cell AMX_NATIVE_CALL Pawn::n_SvCreateDLStreamAtVehicle(AMX* const amx, cell* con
 		distance, maxplayers, vehicleid, color, name.c_str(), result
 	);
 
-	return reinterpret_cast<cell>(result);
+	return HandleMap::Store(result);
 }
 
 cell AMX_NATIVE_CALL Pawn::n_SvCreateDLStreamAtPlayer(AMX* const amx, cell* const params)
@@ -559,7 +605,7 @@ cell AMX_NATIVE_CALL Pawn::n_SvCreateDLStreamAtPlayer(AMX* const amx, cell* cons
 		distance, maxplayers, playerid, color, name.c_str(), result
 	);
 
-	return reinterpret_cast<cell>(result);
+	return HandleMap::Store(result);
 }
 
 cell AMX_NATIVE_CALL Pawn::n_SvCreateDLStreamAtObject(AMX* const amx, cell* const params)
@@ -585,7 +631,7 @@ cell AMX_NATIVE_CALL Pawn::n_SvCreateDLStreamAtObject(AMX* const amx, cell* cons
 		distance, maxplayers, objectid, color, name.c_str(), result
 	);
 
-	return reinterpret_cast<cell>(result);
+	return HandleMap::Store(result);
 }
 
 cell AMX_NATIVE_CALL Pawn::n_SvUpdateDistanceForLStream(AMX* const amx, cell* const params)
@@ -593,7 +639,7 @@ cell AMX_NATIVE_CALL Pawn::n_SvUpdateDistanceForLStream(AMX* const amx, cell* co
 	if (Pawn::pInterface == nullptr) return NULL;
 	if (params[0] != 2 * sizeof(cell)) return NULL;
 
-	const auto lstream = dynamic_cast<LocalStream*>(reinterpret_cast<Stream*>(params[1]));
+	const auto lstream = dynamic_cast<LocalStream*>(HandleMap::Get<Stream>(params[1]));
 	if (!lstream) return NULL;
 
 	const auto distance = amx_ctof(params[2]);
@@ -621,7 +667,7 @@ cell AMX_NATIVE_CALL Pawn::n_SvUpdatePositionForLPStream(AMX* const amx, cell* c
 	if (Pawn::pInterface == nullptr) return NULL;
 	if (params[0] != 4 * sizeof(cell)) return NULL;
 
-	const auto lpstream = dynamic_cast<PointStream*>(reinterpret_cast<Stream*>(params[1]));
+	const auto lpstream = dynamic_cast<PointStream*>(HandleMap::Get<Stream>(params[1]));
 	if (!lpstream) return NULL;
 
 	const auto posx = amx_ctof(params[2]);
@@ -651,7 +697,7 @@ cell AMX_NATIVE_CALL Pawn::n_SvAttachListenerToStream(AMX* const amx, cell* cons
 	if (Pawn::pInterface == nullptr) return false;
 	if (params[0] != 2 * sizeof(cell)) return false;
 
-	const auto stream = reinterpret_cast<Stream*>(params[1]);
+	const auto stream = HandleMap::Get<Stream>(params[1]);
 	const auto playerid = static_cast<uint16_t>(params[2]);
 
 	if (!StreamManager::IsValidStream(stream)) 
@@ -678,7 +724,7 @@ cell AMX_NATIVE_CALL Pawn::n_SvHasListenerInStream(AMX* const amx, cell* const p
 	if (Pawn::pInterface == nullptr) return false;
 	if (params[0] != 2 * sizeof(cell)) return false;
 
-	const auto stream = reinterpret_cast<Stream*>(params[1]);
+	const auto stream = HandleMap::Get<Stream>(params[1]);
 	const auto playerid = static_cast<uint16_t>(params[2]);
 
 	if (!StreamManager::IsValidStream(stream)) 
@@ -705,7 +751,7 @@ cell AMX_NATIVE_CALL Pawn::n_SvDetachListenerFromStream(AMX* const amx, cell* co
 	if (Pawn::pInterface == nullptr) return false;
 	if (params[0] != 2 * sizeof(cell)) return false;
 
-	const auto stream = reinterpret_cast<Stream*>(params[1]);
+	const auto stream = HandleMap::Get<Stream>(params[1]);
 	const auto playerid = static_cast<uint16_t>(params[2]);
 
 	if (!StreamManager::IsValidStream(stream)) 
@@ -732,7 +778,7 @@ cell AMX_NATIVE_CALL Pawn::n_SvDetachAllListenersFromStream(AMX* const amx, cell
 	if (Pawn::pInterface == nullptr) return NULL;
 	if (params[0] != 1 * sizeof(cell)) return NULL;
 
-	const auto stream = reinterpret_cast<Stream*>(params[1]);
+	const auto stream = HandleMap::Get<Stream>(params[1]);
 
 	if (Pawn::debugStatus) Logger::Log(
 		"[sv:dbg:pawn:SvDetachAllListenersFromStream] : stream(%p)",
@@ -757,7 +803,7 @@ cell AMX_NATIVE_CALL Pawn::n_SvAttachSpeakerToStream(AMX* const amx, cell* const
 	if (Pawn::pInterface == nullptr) return false;
 	if (params[0] != 2 * sizeof(cell)) return false;
 
-	const auto stream = reinterpret_cast<Stream*>(params[1]);
+	const auto stream = HandleMap::Get<Stream>(params[1]);
 	const auto playerid = static_cast<uint16_t>(params[2]);
 
 	if (!StreamManager::IsValidStream(stream)) 
@@ -779,12 +825,37 @@ cell AMX_NATIVE_CALL Pawn::n_SvAttachSpeakerToStream(AMX* const amx, cell* const
 	return result;
 }
 
+cell AMX_NATIVE_CALL Pawn::n_SvAttachSpeakerToStreamWithChannels(AMX* const amx, cell* const params)
+{
+	if (Pawn::pInterface == nullptr) return false;
+	if (params[0] != 3 * sizeof(cell)) return false;
+
+	const auto stream = HandleMap::Get<Stream>(params[1]);
+	const auto playerid = static_cast<uint16_t>(params[2]);
+	const auto channelMask = static_cast<uint32_t>(params[3]);
+
+	if (!StreamManager::IsValidStream(stream))
+	{
+		if (Pawn::debugStatus) Logger::Log(
+			"[sv:dbg:pawn:SvAttachSpeakerToStreamWithChannels] : invalid stream(%p)", stream);
+		return NULL;
+	}
+
+	const auto result = Pawn::pInterface->SvAttachSpeakerToStreamWithChannels(stream, playerid, channelMask);
+
+	if (Pawn::debugStatus) Logger::Log(
+		"[sv:dbg:pawn:SvAttachSpeakerToStreamWithChannels] : stream(%p), playerid(%hu), mask(0x%x) : return(%hhu)",
+		stream, playerid, channelMask, result);
+
+	return result;
+}
+
 cell AMX_NATIVE_CALL Pawn::n_SvHasSpeakerInStream(AMX* const amx, cell* const params)
 {
 	if (Pawn::pInterface == nullptr) return false;
 	if (params[0] != 2 * sizeof(cell)) return false;
 
-	const auto stream = reinterpret_cast<Stream*>(params[1]);
+	const auto stream = HandleMap::Get<Stream>(params[1]);
 	const auto playerid = static_cast<uint16_t>(params[2]);
 
 	if (!StreamManager::IsValidStream(stream)) 
@@ -811,7 +882,7 @@ cell AMX_NATIVE_CALL Pawn::n_SvDetachSpeakerFromStream(AMX* const amx, cell* con
 	if (Pawn::pInterface == nullptr) return false;
 	if (params[0] != 2 * sizeof(cell)) return false;
 
-	const auto stream = reinterpret_cast<Stream*>(params[1]);
+	const auto stream = HandleMap::Get<Stream>(params[1]);
 	const auto playerid = static_cast<uint16_t>(params[2]);
 
 	if (!StreamManager::IsValidStream(stream)) 
@@ -838,7 +909,7 @@ cell AMX_NATIVE_CALL Pawn::n_SvDetachAllSpeakersFromStream(AMX* const amx, cell*
 	if (Pawn::pInterface == nullptr) return NULL;
 	if (params[0] != 1 * sizeof(cell)) return NULL;
 
-	const auto stream = reinterpret_cast<Stream*>(params[1]);
+	const auto stream = HandleMap::Get<Stream>(params[1]);
 
 	if (Pawn::debugStatus) Logger::Log(
 		"[sv:dbg:pawn:SvDetachAllSpeakersFromStream] : stream(%p)",
@@ -863,7 +934,7 @@ cell AMX_NATIVE_CALL Pawn::n_SvStreamParameterSet(AMX* const amx, cell* const pa
 	if (Pawn::pInterface == nullptr) return NULL;
 	if (params[0] != 3 * sizeof(cell)) return NULL;
 
-	const auto stream = reinterpret_cast<Stream*>(params[1]);
+	const auto stream = HandleMap::Get<Stream>(params[1]);
 	const auto parameter = static_cast<uint8_t>(params[2]);
 	const auto value = amx_ctof(params[3]);
 
@@ -888,7 +959,7 @@ cell AMX_NATIVE_CALL Pawn::n_SvStreamParameterReset(AMX* const amx, cell* const 
 	if (Pawn::pInterface == nullptr) return NULL;
 	if (params[0] != 2 * sizeof(cell)) return NULL;
 
-	const auto stream = reinterpret_cast<Stream*>(params[1]);
+	const auto stream = HandleMap::Get<Stream>(params[1]);
 	const auto parameter = static_cast<uint8_t>(params[2]);
 
 	if (Pawn::debugStatus) Logger::Log("[sv:dbg:pawn:SvStreamParameterReset] : "
@@ -912,7 +983,7 @@ cell AMX_NATIVE_CALL Pawn::n_SvStreamParameterHas(AMX* const amx, cell* const pa
 	if (Pawn::pInterface == nullptr) return NULL;
 	if (params[0] != 2 * sizeof(cell)) return NULL;
 
-	const auto stream = reinterpret_cast<Stream*>(params[1]);
+	const auto stream = HandleMap::Get<Stream>(params[1]);
 	const auto parameter = static_cast<uint8_t>(params[2]);
 
 	if (!StreamManager::IsValidStream(stream)) 
@@ -937,7 +1008,7 @@ cell AMX_NATIVE_CALL Pawn::n_SvStreamParameterGet(AMX* const amx, cell* const pa
 	if (Pawn::pInterface == nullptr) return NULL;
 	if (params[0] != 2 * sizeof(cell)) return NULL;
 
-	const auto stream = reinterpret_cast<Stream*>(params[1]);
+	const auto stream = HandleMap::Get<Stream>(params[1]);
 	const auto parameter = static_cast<uint8_t>(params[2]);
 
 	if (!StreamManager::IsValidStream(stream)) 
@@ -962,7 +1033,7 @@ cell AMX_NATIVE_CALL Pawn::n_SvStreamParameterSlideFromTo(AMX* const amx, cell* 
 	if (Pawn::pInterface == nullptr) return NULL;
 	if (params[0] != 5 * sizeof(cell)) return NULL;
 
-	const auto stream = reinterpret_cast<Stream*>(params[1]);
+	const auto stream = HandleMap::Get<Stream>(params[1]);
 	const auto parameter = static_cast<uint8_t>(params[2]);
 	const auto startvalue = amx_ctof(params[3]);
 	const auto endvalue = amx_ctof(params[4]);
@@ -990,10 +1061,10 @@ cell AMX_NATIVE_CALL Pawn::n_SvStreamParameterSlideTo(AMX* const amx, cell* cons
 	if (Pawn::pInterface == nullptr) return NULL;
 	if (params[0] != 4 * sizeof(cell)) return NULL;
 
-	const auto stream = reinterpret_cast<Stream*>(params[1]);
+	const auto stream = HandleMap::Get<Stream>(params[1]);
 	const auto parameter = static_cast<uint8_t>(params[2]);
-	const auto endvalue = amx_ctof(params[4]);
-	const auto time = static_cast<uint32_t>(params[5]);
+	const auto endvalue = amx_ctof(params[3]);
+	const auto time = static_cast<uint32_t>(params[4]);
 
 	if (Pawn::debugStatus) Logger::Log("[sv:dbg:pawn:SvStreamParameterSlideTo] : "
 		"stream(%p), parameter(%hhu), endvalue(%.2f), time(%u)",
@@ -1017,10 +1088,10 @@ cell AMX_NATIVE_CALL Pawn::n_SvStreamParameterSlide(AMX* const amx, cell* const 
 	if (Pawn::pInterface == nullptr) return NULL;
 	if (params[0] != 4 * sizeof(cell)) return NULL;
 
-	const auto stream = reinterpret_cast<Stream*>(params[1]);
+	const auto stream = HandleMap::Get<Stream>(params[1]);
 	const auto parameter = static_cast<uint8_t>(params[2]);
-	const auto deltavalue = amx_ctof(params[4]);
-	const auto time = static_cast<uint32_t>(params[5]);
+	const auto deltavalue = amx_ctof(params[3]);
+	const auto time = static_cast<uint32_t>(params[4]);
 
 	if (Pawn::debugStatus) Logger::Log("[sv:dbg:pawn:SvStreamParameterSlide] : "
 		"stream(%p), parameter(%hhu), deltavalue(%.2f), time(%u)",
@@ -1044,7 +1115,7 @@ cell AMX_NATIVE_CALL Pawn::n_SvDeleteStream(AMX* const amx, cell* const params)
 	if (Pawn::pInterface == nullptr) return NULL;
 	if (params[0] != 1 * sizeof(cell)) return NULL;
 
-	const auto stream = reinterpret_cast<Stream*>(params[1]);
+	const auto stream = HandleMap::Get<Stream>(params[1]);
 
 	if (Pawn::debugStatus) Logger::Log(
 		"[sv:dbg:pawn:SvDeleteStream] : stream(%p)",
@@ -1061,6 +1132,27 @@ cell AMX_NATIVE_CALL Pawn::n_SvDeleteStream(AMX* const amx, cell* const params)
 	}
 
 	Pawn::pInterface->SvDeleteStream(stream);
+	HandleMap::Remove(params[1]);
+	return NULL;
+}
+
+cell AMX_NATIVE_CALL Pawn::n_SvSetStreamTarget(AMX* const amx, cell* const params)
+{
+	if (Pawn::pInterface == nullptr) return NULL;
+	if (params[0] != 3 * sizeof(cell)) return NULL;
+
+	const auto stream = HandleMap::Get<Stream>(params[1]);
+
+	if (!StreamManager::IsValidStream(stream)) return NULL;
+
+	const auto targetType = static_cast<uint8_t>(params[2]);
+	const auto targetId = static_cast<uint16_t>(params[3]);
+
+	if (Pawn::debugStatus) Logger::Log(
+		"[sv:dbg:pawn:SvSetStreamTarget] : stream(%p), type(%hhu), id(%hu)",
+		stream, targetType, targetId);
+
+	Pawn::pInterface->SvSetStreamTarget(stream, targetType, targetId);
 	return NULL;
 }
 
@@ -1084,7 +1176,7 @@ cell AMX_NATIVE_CALL Pawn::n_SvEffectCreateChorus(AMX* const amx, cell* const pa
 		"priority(%d), wetdrymix(%.2f), depth(%.2f), feedback(%.2f), frequency(%.2f), waveform(%u), delay(%.2f), phase(%u) : return(%p)",
 		priority, wetdrymix, depth, feedback, frequency, waveform, delay, phase, result);
 
-	return reinterpret_cast<cell>(result);
+	return HandleMap::Store(result);
 
 }
 
@@ -1107,7 +1199,7 @@ cell AMX_NATIVE_CALL Pawn::n_SvEffectCreateCompressor(AMX* const amx, cell* cons
 		"priority(%d), gain(%.2f), attack(%.2f), release(%.2f), threshold(%.2f), ratio(%.2f), predelay(%.2f) : return(%p)",
 		priority, gain, attack, release, threshold, ratio, predelay, result);
 
-	return reinterpret_cast<cell>(result);
+	return HandleMap::Store(result);
 }
 
 cell AMX_NATIVE_CALL Pawn::n_SvEffectCreateDistortion(AMX* const amx, cell* const params)
@@ -1128,7 +1220,7 @@ cell AMX_NATIVE_CALL Pawn::n_SvEffectCreateDistortion(AMX* const amx, cell* cons
 		"priority(%d), gain(%.2f), edge(%.2f), posteqcenterfrequency(%.2f), posteqbandwidth(%.2f), prelowpasscutoff(%.2f) : return(%p)",
 		priority, gain, edge, posteqcenterfrequency, posteqbandwidth, prelowpasscutoff, result);
 
-	return reinterpret_cast<cell>(result);
+	return HandleMap::Store(result);
 }
 
 cell AMX_NATIVE_CALL Pawn::n_SvEffectCreateEcho(AMX* const amx, cell* const params)
@@ -1149,7 +1241,7 @@ cell AMX_NATIVE_CALL Pawn::n_SvEffectCreateEcho(AMX* const amx, cell* const para
 		"priority(%d), wetdrymix(%.2f), feedback(%.2f), leftdelay(%.2f), rightdelay(%.2f), pandelay(%hhu) : return(%p)",
 		priority, wetdrymix, feedback, leftdelay, rightdelay, pandelay, result);
 
-	return reinterpret_cast<cell>(result);
+	return HandleMap::Store(result);
 }
 
 cell AMX_NATIVE_CALL Pawn::n_SvEffectCreateFlanger(AMX* const amx, cell* const params)
@@ -1172,7 +1264,7 @@ cell AMX_NATIVE_CALL Pawn::n_SvEffectCreateFlanger(AMX* const amx, cell* const p
 		"priority(%d), wetdrymix(%.2f), depth(%.2f), feedback(%.2f), frequency(%.2f), waveform(%u), delay(%.2f), phase(%u) : return(%p)",
 		priority, wetdrymix, depth, feedback, frequency, waveform, delay, phase, result);
 
-	return reinterpret_cast<cell>(result);
+	return HandleMap::Store(result);
 }
 
 cell AMX_NATIVE_CALL Pawn::n_SvEffectCreateGargle(AMX* const amx, cell* const params)
@@ -1190,7 +1282,7 @@ cell AMX_NATIVE_CALL Pawn::n_SvEffectCreateGargle(AMX* const amx, cell* const pa
 		"priority(%d), ratehz(%u), waveshape(%u) : return(%p)",
 		priority, ratehz, waveshape, result);
 
-	return reinterpret_cast<cell>(result);
+	return HandleMap::Store(result);
 }
 
 cell AMX_NATIVE_CALL Pawn::n_SvEffectCreateI3dl2reverb(AMX* const amx, cell* const params)
@@ -1224,7 +1316,7 @@ cell AMX_NATIVE_CALL Pawn::n_SvEffectCreateI3dl2reverb(AMX* const amx, cell* con
 		priority, room, roomhf, roomrollofffactor, decaytime, decayhfratio, reflections,
 		reflectionsdelay, reverb, reverbdelay, diffusion, density, hfreference, result);
 
-	return reinterpret_cast<cell>(result);
+	return HandleMap::Store(result);
 }
 
 cell AMX_NATIVE_CALL Pawn::n_SvEffectCreateParameq(AMX* const amx, cell* const params)
@@ -1243,7 +1335,7 @@ cell AMX_NATIVE_CALL Pawn::n_SvEffectCreateParameq(AMX* const amx, cell* const p
 		"priority(%d), center(%.2f), bandwidth(%.2f), gain(%.2f) : return(%p)",
 		priority, center, bandwidth, gain, result);
 
-	return reinterpret_cast<cell>(result);
+	return HandleMap::Store(result);
 }
 
 cell AMX_NATIVE_CALL Pawn::n_SvEffectCreateReverb(AMX* const amx, cell* const params)
@@ -1263,7 +1355,7 @@ cell AMX_NATIVE_CALL Pawn::n_SvEffectCreateReverb(AMX* const amx, cell* const pa
 		"priority(%d), ingain(%.2f), reverbmix(%.2f), reverbtime(%.2f), highfreqrtratio(%.2f) : return(%p)",
 		priority, ingain, reverbmix, reverbtime, highfreqrtratio, result);
 
-	return reinterpret_cast<cell>(result);
+	return HandleMap::Store(result);
 }
 
 cell AMX_NATIVE_CALL Pawn::n_SvEffectAttachStream(AMX* const amx, cell* const params)
@@ -1271,8 +1363,8 @@ cell AMX_NATIVE_CALL Pawn::n_SvEffectAttachStream(AMX* const amx, cell* const pa
 	if (Pawn::pInterface == nullptr) return NULL;
 	if (params[0] != 2 * sizeof(cell)) return NULL;
 
-	const auto effect = reinterpret_cast<Effect*>(params[1]);
-	const auto stream = reinterpret_cast<Stream*>(params[2]);
+	const auto effect = HandleMap::Get<Effect>(params[1]);
+	const auto stream = HandleMap::Get<Stream>(params[2]);
 
 	if (Pawn::debugStatus) Logger::Log("[sv:dbg:pawn:SvEffectAttachStream] : "
 		"effect(%p), stream(%p)", effect, stream);
@@ -1304,8 +1396,8 @@ cell AMX_NATIVE_CALL Pawn::n_SvEffectDetachStream(AMX* const amx, cell* const pa
 	if (Pawn::pInterface == nullptr) return NULL;
 	if (params[0] != 2 * sizeof(cell)) return NULL;
 
-	const auto effect = reinterpret_cast<Effect*>(params[1]);
-	const auto stream = reinterpret_cast<Stream*>(params[2]);
+	const auto effect = HandleMap::Get<Effect>(params[1]);
+	const auto stream = HandleMap::Get<Stream>(params[2]);
 
 	if (Pawn::debugStatus) Logger::Log("[sv:dbg:pawn:SvEffectDetachStream] : "
 		"effect(%p), stream(%p)", effect, stream);
@@ -1337,7 +1429,7 @@ cell AMX_NATIVE_CALL Pawn::n_SvEffectDelete(AMX* const amx, cell* const params)
 	if (Pawn::pInterface == nullptr) return NULL;
 	if (params[0] != 1 * sizeof(cell)) return NULL;
 
-	const auto effect = reinterpret_cast<Effect*>(params[1]);
+	const auto effect = HandleMap::Get<Effect>(params[1]);
 
 	if (Pawn::debugStatus) Logger::Log(
 		"[sv:dbg:pawn:SvEffectDelete] : effect(%p)",
@@ -1354,7 +1446,220 @@ cell AMX_NATIVE_CALL Pawn::n_SvEffectDelete(AMX* const amx, cell* const params)
 	}
 
 	Pawn::pInterface->SvEffectDelete(effect);
+	HandleMap::Remove(params[1]);
 	return NULL;
+}
+
+cell AMX_NATIVE_CALL Pawn::n_SvEffectCreate(AMX* const amx, cell* const params)
+{
+	if (Pawn::pInterface == nullptr) return NULL;
+	if (params[0] != 0 * sizeof(cell)) return NULL;
+
+	const auto effect = Pawn::pInterface->SvEffectCreate();
+
+	if (Pawn::debugStatus) Logger::Log(
+		"[sv:dbg:pawn:SvEffectCreate] : effect(%p)", effect);
+
+	return HandleMap::Store(effect);
+}
+
+cell AMX_NATIVE_CALL Pawn::n_SvEffectAppendFilter(AMX* const amx, cell* const params)
+{
+	if (Pawn::pInterface == nullptr) return false;
+	if (params[0] < 3 * sizeof(cell)) return false;
+
+	const auto effect = HandleMap::Get<Effect>(params[1]);
+	if (!EffectManager::IsValidEffect(effect)) return false;
+
+	const auto number = static_cast<uint32_t>(params[2]);
+	const auto priority = static_cast<int32_t>(params[3]);
+
+	const uint32_t paramSize = params[0] - 3 * sizeof(cell);
+	const void* paramData = (paramSize > 0) ? &params[4] : nullptr;
+
+	if (Pawn::debugStatus) Logger::Log(
+		"[sv:dbg:pawn:SvEffectAppendFilter] : effect(%p), number(%u), priority(%d), paramSize(%u)",
+		effect, number, priority, paramSize);
+
+	return Pawn::pInterface->SvEffectAppendFilter(effect, number, priority, paramData, paramSize);
+}
+
+cell AMX_NATIVE_CALL Pawn::n_SvEffectRemoveFilter(AMX* const amx, cell* const params)
+{
+	if (Pawn::pInterface == nullptr) return false;
+	if (params[0] != 3 * sizeof(cell)) return false;
+
+	const auto effect = HandleMap::Get<Effect>(params[1]);
+	if (!EffectManager::IsValidEffect(effect)) return false;
+
+	const auto number = static_cast<uint32_t>(params[2]);
+	const auto priority = static_cast<int32_t>(params[3]);
+
+	if (Pawn::debugStatus) Logger::Log(
+		"[sv:dbg:pawn:SvEffectRemoveFilter] : effect(%p), number(%u), priority(%d)",
+		effect, number, priority);
+
+	return Pawn::pInterface->SvEffectRemoveFilter(effect, number, priority);
+}
+
+cell AMX_NATIVE_CALL Pawn::n_SvEnableTransiter(AMX* const amx, cell* const params)
+{
+	if (Pawn::pInterface == nullptr) return false;
+	if (params[0] != 1 * sizeof(cell)) return false;
+
+	const auto stream = HandleMap::Get<Stream>(params[1]);
+	if (stream == nullptr) return false;
+
+	if (Pawn::debugStatus) Logger::Log(
+		"[sv:dbg:pawn:SvEnableTransiter] : stream(%p)", stream);
+
+	return Pawn::pInterface->SvEnableTransiter(stream);
+}
+
+cell AMX_NATIVE_CALL Pawn::n_SvDisableTransiter(AMX* const amx, cell* const params)
+{
+	if (Pawn::pInterface == nullptr) return false;
+	if (params[0] != 1 * sizeof(cell)) return false;
+
+	const auto stream = HandleMap::Get<Stream>(params[1]);
+	if (stream == nullptr) return false;
+
+	if (Pawn::debugStatus) Logger::Log(
+		"[sv:dbg:pawn:SvDisableTransiter] : stream(%p)", stream);
+
+	return Pawn::pInterface->SvDisableTransiter(stream);
+}
+
+cell AMX_NATIVE_CALL Pawn::n_SvCheckTransiter(AMX* const amx, cell* const params)
+{
+	if (Pawn::pInterface == nullptr) return false;
+	if (params[0] != 1 * sizeof(cell)) return false;
+
+	const auto stream = HandleMap::Get<Stream>(params[1]);
+	if (stream == nullptr) return false;
+
+	const auto result = Pawn::pInterface->SvCheckTransiter(stream);
+
+	if (Pawn::debugStatus) Logger::Log(
+		"[sv:dbg:pawn:SvCheckTransiter] : stream(%p) : return(%hhu)", stream, result);
+
+	return result;
+}
+
+cell AMX_NATIVE_CALL Pawn::n_SvSetIcon(AMX* const amx, cell* const params)
+{
+	if (Pawn::pInterface == nullptr) return NULL;
+	if (params[0] != 2 * sizeof(cell)) return NULL;
+
+	const auto stream = HandleMap::Get<Stream>(params[1]);
+
+	if (Pawn::debugStatus) Logger::Log(
+		"[sv:dbg:pawn:SvSetIcon] : stream(%p)",
+		stream
+	);
+
+	if (stream == nullptr) return NULL;
+
+	cell* phys_addr{ nullptr }; int tmp_len{ 0 };
+	if (amx_GetAddr(amx, params[2], &phys_addr) || amx_StrLen(phys_addr, &tmp_len)) return NULL;
+	std::string name(tmp_len + 1, '\0');
+	if (amx_GetString(name.data(), phys_addr, false, tmp_len + 1)) return NULL;
+
+	Pawn::pInterface->SvSetIcon(stream, name);
+	return NULL;
+}
+
+// -------------------------------------------------------------------------------------
+
+cell AMX_NATIVE_CALL Pawn::n_SvEnableListener(AMX* const amx, cell* const params)
+{
+	if (Pawn::pInterface == nullptr) return false;
+	if (params[0] != 1 * sizeof(cell)) return false;
+
+	const auto playerId = static_cast<uint16_t>(params[1]);
+
+	if (Pawn::debugStatus) Logger::Log(
+		"[sv:dbg:pawn:SvEnableListener] : playerid(%hu)",
+		playerId);
+
+	return Pawn::pInterface->SvEnableListener(playerId);
+}
+
+cell AMX_NATIVE_CALL Pawn::n_SvDisableListener(AMX* const amx, cell* const params)
+{
+	if (Pawn::pInterface == nullptr) return false;
+	if (params[0] != 1 * sizeof(cell)) return false;
+
+	const auto playerId = static_cast<uint16_t>(params[1]);
+
+	if (Pawn::debugStatus) Logger::Log(
+		"[sv:dbg:pawn:SvDisableListener] : playerid(%hu)",
+		playerId);
+
+	return Pawn::pInterface->SvDisableListener(playerId);
+}
+
+cell AMX_NATIVE_CALL Pawn::n_SvCheckListener(AMX* const amx, cell* const params)
+{
+	if (Pawn::pInterface == nullptr) return false;
+	if (params[0] != 1 * sizeof(cell)) return false;
+
+	const auto playerId = static_cast<uint16_t>(params[1]);
+
+	const auto result = Pawn::pInterface->SvCheckListener(playerId);
+
+	if (Pawn::debugStatus) Logger::Log(
+		"[sv:dbg:pawn:SvCheckListener] : playerid(%hu) : return(%hhu)",
+		playerId, result);
+
+	return result;
+}
+
+cell AMX_NATIVE_CALL Pawn::n_SvEnableSpeaker(AMX* const amx, cell* const params)
+{
+	if (Pawn::pInterface == nullptr) return false;
+	if (params[0] != 2 * sizeof(cell)) return false;
+
+	const auto playerId = static_cast<uint16_t>(params[1]);
+	const auto channelMask = static_cast<uint32_t>(params[2]);
+
+	if (Pawn::debugStatus) Logger::Log(
+		"[sv:dbg:pawn:SvEnableSpeaker] : playerid(%hu), mask(0x%x)",
+		playerId, channelMask);
+
+	return Pawn::pInterface->SvEnableSpeaker(playerId, channelMask);
+}
+
+cell AMX_NATIVE_CALL Pawn::n_SvDisableSpeaker(AMX* const amx, cell* const params)
+{
+	if (Pawn::pInterface == nullptr) return false;
+	if (params[0] != 2 * sizeof(cell)) return false;
+
+	const auto playerId = static_cast<uint16_t>(params[1]);
+	const auto channelMask = static_cast<uint32_t>(params[2]);
+
+	if (Pawn::debugStatus) Logger::Log(
+		"[sv:dbg:pawn:SvDisableSpeaker] : playerid(%hu), mask(0x%x)",
+		playerId, channelMask);
+
+	return Pawn::pInterface->SvDisableSpeaker(playerId, channelMask);
+}
+
+cell AMX_NATIVE_CALL Pawn::n_SvCheckSpeaker(AMX* const amx, cell* const params)
+{
+	if (Pawn::pInterface == nullptr) return false;
+	if (params[0] != 2 * sizeof(cell)) return false;
+
+	const auto playerId = static_cast<uint16_t>(params[1]);
+	const auto channelMask = static_cast<uint32_t>(params[2]);
+
+	const auto result = Pawn::pInterface->SvCheckSpeaker(playerId, channelMask);
+
+	if (Pawn::debugStatus) Logger::Log(
+		"[sv:dbg:pawn:SvCheckSpeaker] : playerid(%hu), mask(0x%x) : return(%hhu)",
+		playerId, channelMask, result);
+
+	return result;
 }
 
 bool Pawn::debugStatus{ false };

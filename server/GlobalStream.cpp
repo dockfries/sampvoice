@@ -22,7 +22,7 @@ GlobalStream::GlobalStream(const uint32_t color, const std::string& name)
 
 	PackWrap(this->packetCreateStream, SV::ControlPacketType::createGStream, sizeof(SV::CreateGStreamPacket) + nameLength);
 
-	PackGetStruct(&*this->packetCreateStream, SV::CreateGStreamPacket)->stream = reinterpret_cast<uint32_t>(static_cast<Stream*>(this));
+	PackGetStruct(&*this->packetCreateStream, SV::CreateGStreamPacket)->stream = this->streamId;
 	std::memcpy(PackGetStruct(&*this->packetCreateStream, SV::CreateGStreamPacket)->name, nameString, nameLength);
 	PackGetStruct(&*this->packetCreateStream, SV::CreateGStreamPacket)->color = color;
 }

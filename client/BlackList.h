@@ -15,8 +15,7 @@
 #include <string>
 
 #include <util/Memory.hpp>
-#include <util/AddressesBase.h>
-#include <samp/CPlayerPool.h>
+#include <svapi.h>
 
 #include "Header.h"
 
@@ -54,7 +53,7 @@ public:
 
 public:
 
-    static bool Init(const AddressesBase& addrBase) noexcept;
+    static bool Init() noexcept;
     static void Free() noexcept;
 
     static bool Load(const std::string& filePath);
@@ -71,11 +70,11 @@ public:
 
 private:
 
-    static BOOL __thiscall CreatePlayerInPoolHook(SAMP::CPlayerPool* _this,
-        SAMP::ID nId, const char* szName, BOOL bIsNPC) noexcept;
+    static BOOL __thiscall CreatePlayerInPoolHook(sv::CPlayerPool* _this,
+        sampapi::ID nId, const char* szName, BOOL bIsNPC) noexcept;
 
-    static BOOL __thiscall DeletePlayerFromPoolHook(SAMP::CPlayerPool* _this,
-        SAMP::ID nId, int nReason) noexcept;
+    static BOOL __thiscall DeletePlayerFromPoolHook(sv::CPlayerPool* _this,
+        sampapi::ID nId, int nReason) noexcept;
 
 private:
 

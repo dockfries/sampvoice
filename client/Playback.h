@@ -13,7 +13,7 @@
 
 #include <audio/bass.h>
 #include <util/Memory.hpp>
-#include <util/AddressesBase.h>
+#include <svapi.h>
 
 class Playback {
 
@@ -26,7 +26,7 @@ class Playback {
 
 public:
 
-    static bool Init(const AddressesBase& addrBase) noexcept;
+    static bool Init() noexcept;
     static void Free() noexcept;
 
     static void Tick() noexcept;

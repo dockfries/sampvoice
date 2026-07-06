@@ -1,20 +1,8 @@
-/*
-    This is a SampVoice project file
-    Author: CyberMor <cyber.mor.2020@gmail.ru>
-    open.mp version author: AmyrAhmady (iAmir) <hhm6@yahoo.com>
-
-    See more here https://github.com/AmyrAhmady/sampvoice
-    Original repository: https://github.com/CyberMor/sampvoice
-
-    Copyright (c) Daniel (CyberMor) 2020 All rights reserved
-*/
-
 #include "GameUtil.h"
 
 #include <game/CWorld.h>
 #include <game/CCamera.h>
 #include <game/CMenuManager.h>
-#include <samp/CNetGame.h>
 
 #include "Render.h"
 #include "Samp.h"
@@ -49,10 +37,10 @@ bool GameUtil::HasPlayerPed() noexcept
 {
     if (!Samp::IsLoaded()) return false;
 
-    const auto pNetGame = SAMP::pNetGame();
+    const auto pNetGame = sv::RefNetGame();
     if (!pNetGame) return false;
 
-    const auto pPlayerPool = pNetGame->GetPlayerPool();
+    const auto pPlayerPool = pNetGame->m_pPools->m_pPlayer;
     if (!pPlayerPool) return false;
 
     const auto pLocalPlayer = pPlayerPool->GetLocalPlayer();
@@ -65,23 +53,26 @@ bool GameUtil::IsPlayerVisible(const WORD playerId) noexcept
 {
     if (!Samp::IsLoaded()) return false;
 
-    const auto pNetGame = SAMP::pNetGame();
+    const auto pNetGame = sv::RefNetGame();
     if (!pNetGame) return false;
 
-    const auto pPlayerPool = pNetGame->GetPlayerPool();
+    const auto pPlayerPool = pNetGame->m_pPools->m_pPlayer;
     if (!pPlayerPool) return false;
 
-    const auto pPlayer = pPlayerPool->GetPlayer(playerId);
+    const auto pPlayerInfo = pPlayerPool->m_pObject[playerId];
+    if (!pPlayerInfo) return false;
+
+    const auto pPlayer = pPlayerInfo->m_pPlayer;
     if (!pPlayer) return false;
 
-    const auto pPlayerPed = pPlayer->m_pPed;
-    if (!pPlayerPed) return false;
+    const auto pPed = pPlayer->m_pPed;
+    if (!pPed) return false;
 
-    const auto pPlayerGamePed = pPlayerPed->m_pGamePed;
-    if (!pPlayerGamePed) return false;
+    const auto pGamePed = pPed->m_pGameEntity;
+    if (!pGamePed) return false;
 
-    return pPlayerGamePed->GetIsOnScreen() && CWorld::GetIsLineOfSightClear(
-        TheCamera.GetPosition(), pPlayerGamePed->GetPosition(),
+    return pGamePed->GetIsOnScreen() && CWorld::GetIsLineOfSightClear(
+        TheCamera.GetPosition(), pGamePed->GetPosition(),
         true, false, false, true, true, true, true
     );
 }
@@ -100,7 +91,6 @@ bool GameUtil::GetRadarRect(CRect& radarRect) noexcept
     auto radarHeight = *reinterpret_cast<float*>(0x866b78); // 94.f
 
 #if defined(SAMP_R3)
-
     if (TheCamera.m_bWideScreenOn)
     {
         multWidth = 0.00222f * screenHeight / screenWidth;
@@ -108,7 +98,6 @@ bool GameUtil::GetRadarRect(CRect& radarRect) noexcept
         radarWidth = 82.f;
         radarHeight = 96.f;
     }
-
 #endif
 
     const float posY = (1.f - multHeight * 104.f) * screenHeight;
@@ -121,7 +110,7 @@ bool GameUtil::GetRadarRect(CRect& radarRect) noexcept
     return true;
 }
 
-void GameUtil::DisableAntiCheat(const AddressesBase& addrBase)
+void GameUtil::DisableAntiCheat()
 {
     struct patch_t
     {
@@ -140,13 +129,21 @@ void GameUtil::DisableAntiCheat(const AddressesBase& addrBase)
 #elif defined(SAMP_R3)
         DefinePatch(0xC4DC0,  "\xB8\x45\x00\x00\x00\xC2\x1C\x00"),
         DefinePatch(0x9D1A0,  "\xC3")
+#elif defined(SAMP_R5)
+        DefinePatch(0xC4530,  "\xB8\x45\x00\x00\x00\xC2\x1C\x00"),
+        DefinePatch(0x9D8B0,  "\xC3")
+#elif defined(SAMP_DL)
+        DefinePatch(0xC5C10,  "\xB8\x45\x00\x00\x00\xC2\x1C\x00"),
+        DefinePatch(0x9D6F0,  "\xC3")
+#else
+#error Unknown SAMP version
 #endif
-#undef  DefinePatch
+#undef DefinePatch
     };
 
     for (const patch_t& patch : patches)
     {
-        const auto address = addrBase.GetBaseAddr() + patch.offset;
+        const auto address = sampapi::GetBase() + patch.offset;
 
         {
             const Memory::UnprotectScope scope { address, patch.length };

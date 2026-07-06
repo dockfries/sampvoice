@@ -21,7 +21,6 @@
 #include <raknet/rakclient.h>
 
 #include "Memory.hpp"
-#include "AddressesBase.h"
 
 class RakNet {
 
@@ -42,7 +41,7 @@ private:
 
 public:
 
-    static bool Init(const AddressesBase& addrBase) noexcept;
+    static bool Init() noexcept;
     static bool IsInited() noexcept;
     static bool IsLoaded() noexcept;
     static void Free() noexcept;

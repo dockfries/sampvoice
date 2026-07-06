@@ -13,6 +13,7 @@
 #include <atomic>
 #include <memory>
 #include <thread>
+#include <shared_mutex>
 
 #include "NetHandler.h"
 #include "VoicePacket.h"
@@ -35,10 +36,10 @@ public:
 
 	~Worker()
 	{
+		this->status->store(false);
+
 		if (this->thread->joinable())
 			this->thread->detach();
-
-		this->status->store(false);
 	}
 
 private:
@@ -56,11 +57,19 @@ private:
 
 			const auto pPlayerInfo = PlayerStore::RequestPlayerWithSharedAccess(voicePacketRef->sender);
 
-			if (pPlayerInfo != nullptr && !pPlayerInfo->muteStatus.load(std::memory_order_relaxed) &&
+			if (pPlayerInfo != nullptr && pPlayerInfo->speakerEnabled.load(std::memory_order_relaxed) &&
+				!pPlayerInfo->muteStatus.load(std::memory_order_relaxed) &&
 				(pPlayerInfo->recordStatus.load(std::memory_order_relaxed) || !pPlayerInfo->keys.empty()))
 			{
-				for (const auto stream : pPlayerInfo->speakerStreams)
-					stream->SendVoicePacket(*&voicePacketRef);
+				const auto activeCh = pPlayerInfo->recordStatus.load(std::memory_order_relaxed)
+				? PlayerInfo::kAllChannels
+				: pPlayerInfo->activeChannels.load(std::memory_order_relaxed);
+				const auto enabledCh = pPlayerInfo->enabledChannels.load(std::memory_order_relaxed);
+
+				std::shared_lock lock(pPlayerInfo->streamsMutex);
+				for (const auto& [stream, chMask] : pPlayerInfo->speakerStreams)
+					if (stream->GetTransiter() && (activeCh & enabledCh & chMask) != 0)
+						stream->SendVoicePacket(*&voicePacketRef);
 			}
 
 			PlayerStore::ReleasePlayerWithSharedAccess(voicePacketRef->sender);

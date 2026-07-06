@@ -1,8 +1,7 @@
 #include "StreamAtVehicle.h"
 
 #include <audio/bass.h>
-#include <samp/CNetGame.h>
-#include <game/CVehicle.h>
+#include <svapi.h>
 
 #include "StreamInfo.h"
 
@@ -16,27 +15,32 @@ void StreamAtVehicle::Tick() noexcept
 {
     this->LocalStream::Tick();
 
-    const auto pNetGame = SAMP::pNetGame();
+    const auto pNetGame = sv::RefNetGame();
     if (!pNetGame) return;
 
-    const auto pVehiclePool = pNetGame->GetVehiclePool();
+    const auto pVehiclePool = pNetGame->m_pPools->m_pVehicle;
     if (!pVehiclePool) return;
 
-    const auto pVehicle = pVehiclePool->m_pGameObject[this->vehicleId];
+    const auto pVehicle = pVehiclePool->m_pObject[this->vehicleId];
     if (!pVehicle) return;
 
-    const auto pVehicleMatrix = pVehicle->GetMatrix();
-    if (!pVehicleMatrix) return;
+    sampapi::CMatrix matrix;
+    pVehicle->GetMatrix(&matrix);
 
     for (const auto& channel : this->GetChannels())
     {
         if (channel->HasSpeaker())
         {
             BASS_ChannelSet3DPosition(channel->GetHandle(),
-                reinterpret_cast<BASS_3DVECTOR*>(&pVehicleMatrix->pos),
+                reinterpret_cast<BASS_3DVECTOR*>(&matrix.pos),
                 nullptr, nullptr);
         }
     }
+}
+
+void StreamAtVehicle::SetTarget(const BYTE /*targetType*/, const WORD targetId)
+{
+    this->vehicleId = targetId;
 }
 
 void StreamAtVehicle::OnChannelCreate(const Channel& channel) noexcept
@@ -45,19 +49,19 @@ void StreamAtVehicle::OnChannelCreate(const Channel& channel) noexcept
 
     this->LocalStream::OnChannelCreate(channel);
 
-    const auto pNetGame = SAMP::pNetGame();
+    const auto pNetGame = sv::RefNetGame();
     if (!pNetGame) return;
 
-    const auto pVehiclePool = pNetGame->GetVehiclePool();
+    const auto pVehiclePool = pNetGame->m_pPools->m_pVehicle;
     if (!pVehiclePool) return;
 
-    const auto pVehicle = pVehiclePool->m_pGameObject[this->vehicleId];
+    const auto pVehicle = pVehiclePool->m_pObject[this->vehicleId];
     if (!pVehicle) return;
 
-    const auto pVehicleMatrix = pVehicle->GetMatrix();
-    if (!pVehicleMatrix) return;
+    sampapi::CMatrix matrix;
+    pVehicle->GetMatrix(&matrix);
 
     BASS_ChannelSet3DPosition(channel.GetHandle(),
-        reinterpret_cast<BASS_3DVECTOR*>(&pVehicleMatrix->pos),
+        reinterpret_cast<BASS_3DVECTOR*>(&matrix.pos),
         &kZeroVector, &kZeroVector);
 }

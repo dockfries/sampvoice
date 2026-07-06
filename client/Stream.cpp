@@ -122,6 +122,35 @@ void Stream::EffectDelete(const DWORD effect)
     this->effects.erase(effect);
 }
 
+void Stream::EffectAppendFilter(const DWORD effect, const DWORD number, const int priority,
+                                const void* const paramPtr, const DWORD paramSize)
+{
+    const auto iter = this->effects.find(effect);
+    if (iter == this->effects.end()) return;
+
+    iter->second->AppendFilter(number, priority, paramPtr, paramSize);
+
+    for (const auto& channel : this->channels)
+    {
+        if (channel->HasSpeaker() || channel->IsActive())
+        {
+            iter->second->Apply(*channel);
+        }
+    }
+}
+
+void Stream::SetTarget(const BYTE /*targetType*/, const WORD /*targetId*/)
+{
+}
+
+void Stream::EffectRemoveFilter(const DWORD effect, const DWORD number, const int priority)
+{
+    const auto iter = this->effects.find(effect);
+    if (iter == this->effects.end()) return;
+
+    iter->second->RemoveFilter(number, priority);
+}
+
 std::size_t Stream::AddPlayCallback(PlayCallback playCallback)
 {
     for (std::size_t i { 0 }; i < this->playCallbacks.size(); ++i)

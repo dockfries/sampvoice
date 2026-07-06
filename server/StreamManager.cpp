@@ -9,21 +9,22 @@
 */
 
 #include "StreamManager.h"
+#include <mutex>
 
 void StreamManager::RegisterStream(Stream* stream) {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::unique_lock lock(mutex_);
     streams_.insert(stream);
 }
 
 void StreamManager::UnregisterStream(Stream* stream) {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::unique_lock lock(mutex_);
     streams_.erase(stream);
 }
 
 bool StreamManager::IsValidStream(Stream* stream) {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::shared_lock lock(mutex_);
     return streams_.find(stream) != streams_.end();
 }
 
 std::set<Stream*> StreamManager::streams_;
-std::mutex StreamManager::mutex_;
+std::shared_mutex StreamManager::mutex_;

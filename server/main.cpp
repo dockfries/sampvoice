@@ -41,6 +41,7 @@
 #include <vector>
 #include <map>
 #include <set>
+#include <mutex>
 
 #include <util/timer.h>
 #include <util/logger.h>
@@ -132,7 +133,7 @@ namespace SV
 			bool addKeyStatus{ false };
 
 			const auto pPlayerInfo = PlayerStore::RequestPlayerWithUniqueAccess(playerId);
-			if (pPlayerInfo != nullptr) addKeyStatus = pPlayerInfo->keys.insert(keyId).second;
+			if (pPlayerInfo != nullptr) addKeyStatus = pPlayerInfo->keys.emplace(keyId, PlayerInfo::kAllChannels).second;
 			PlayerStore::ReleasePlayerWithUniqueAccess(playerId);
 
 			if (!addKeyStatus) return false;
@@ -140,6 +141,22 @@ namespace SV
 			ControlPacket* controlPacket{ nullptr };
 
 			PackAlloca(controlPacket, SV::ControlPacketType::addKey, sizeof(SV::AddKeyPacket));
+			PackGetStruct(controlPacket, SV::AddKeyPacket)->keyId = keyId;
+
+			return NetHandler::SendControlPacket(playerId, *controlPacket);
+		}
+
+		bool SvSetKeyWithChannels(const uint16_t playerId, const uint8_t keyId, const uint32_t channelMask) override
+		{
+			const auto pPlayerInfo = PlayerStore::RequestPlayerWithUniqueAccess(playerId);
+			if (pPlayerInfo == nullptr) return false;
+
+			pPlayerInfo->keys[keyId] = channelMask;
+			PlayerStore::ReleasePlayerWithUniqueAccess(playerId);
+
+			ControlPacket* controlPacket{ nullptr };
+			PackAlloca(controlPacket, SV::ControlPacketType::addKey, sizeof(SV::AddKeyPacket));
+			if (controlPacket == nullptr) return false;
 			PackGetStruct(controlPacket, SV::AddKeyPacket)->keyId = keyId;
 
 			return NetHandler::SendControlPacket(playerId, *controlPacket);
@@ -245,7 +262,7 @@ namespace SV
 
 			const auto baseStream = static_cast<Stream*>(stream);
 
-			SV::streamTable.emplace(reinterpret_cast<uint32_t>(baseStream), baseStream);
+			SV::streamTable.emplace(baseStream->streamId, baseStream);
 
 			return baseStream;
 		}
@@ -259,14 +276,14 @@ namespace SV
 
 			const auto baseStream = static_cast<Stream*>(stream);
 
-			SV::streamTable.emplace(reinterpret_cast<uint32_t>(baseStream), baseStream);
+			SV::streamTable.emplace(baseStream->streamId, baseStream);
 
 			return baseStream;
 		}
 
 		Stream* SvCreateSLStreamAtVehicle(const float distance, const uint16_t vehicleId, const uint32_t color, const std::string& name) override
 		{
-			if (SampVoiceComponent::instance == nullptr && SampVoiceComponent::GetVehicles() == nullptr)
+			if (SampVoiceComponent::instance == nullptr || SampVoiceComponent::GetVehicles() == nullptr)
 				return nullptr;
 
 			IVehicle* vehicle = SampVoiceComponent::GetVehicles()->get(vehicleId);
@@ -278,14 +295,14 @@ namespace SV
 
 			const auto baseStream = static_cast<Stream*>(stream);
 
-			SV::streamTable.emplace(reinterpret_cast<uint32_t>(baseStream), baseStream);
+			SV::streamTable.emplace(baseStream->streamId, baseStream);
 
 			return baseStream;
 		}
 
 		Stream* SvCreateSLStreamAtPlayer(const float distance, const uint16_t playerId, const uint32_t color, const std::string& name) override
 		{
-			if (SampVoiceComponent::instance == nullptr && SampVoiceComponent::GetPlayers() == nullptr)
+			if (SampVoiceComponent::instance == nullptr || SampVoiceComponent::GetPlayers() == nullptr)
 				return nullptr;
 
 			IPlayer* player = SampVoiceComponent::GetPlayers()->get(playerId);
@@ -297,14 +314,14 @@ namespace SV
 
 			const auto baseStream = static_cast<Stream*>(stream);
 
-			SV::streamTable.emplace(reinterpret_cast<uint32_t>(baseStream), baseStream);
+			SV::streamTable.emplace(baseStream->streamId, baseStream);
 
 			return baseStream;
 		}
 
 		Stream* SvCreateSLStreamAtObject(const float distance, const uint16_t objectId, const uint32_t color, const std::string& name) override
 		{
-			if (SampVoiceComponent::instance == nullptr && SampVoiceComponent::GetObjects() == nullptr)
+			if (SampVoiceComponent::instance == nullptr || SampVoiceComponent::GetObjects() == nullptr)
 				return nullptr;
 
 			IObject* object = SampVoiceComponent::GetObjects()->get(objectId);
@@ -316,7 +333,7 @@ namespace SV
 
 			const auto baseStream = static_cast<Stream*>(stream);
 
-			SV::streamTable.emplace(reinterpret_cast<uint32_t>(baseStream), baseStream);
+			SV::streamTable.emplace(baseStream->streamId, baseStream);
 
 			return baseStream;
 		}
@@ -331,14 +348,14 @@ namespace SV
 			const auto baseStream = static_cast<Stream*>(stream);
 
 			SV::dlstreamList.insert(static_cast<DynamicStream*>(stream));
-			SV::streamTable.emplace(reinterpret_cast<uint32_t>(baseStream), baseStream);
+			SV::streamTable.emplace(baseStream->streamId, baseStream);
 
 			return baseStream;
 		}
 
 		Stream* SvCreateDLStreamAtVehicle(const float distance, const uint32_t maxPlayers, const uint16_t vehicleId, const uint32_t color, const std::string& name) override
 		{
-			if (SampVoiceComponent::instance == nullptr && SampVoiceComponent::GetVehicles() == nullptr)
+			if (SampVoiceComponent::instance == nullptr || SampVoiceComponent::GetVehicles() == nullptr)
 				return nullptr;
 
 			IVehicle* vehicle = SampVoiceComponent::GetVehicles()->get(vehicleId);
@@ -351,14 +368,14 @@ namespace SV
 			const auto baseStream = static_cast<Stream*>(stream);
 
 			SV::dlstreamList.insert(static_cast<DynamicStream*>(stream));
-			SV::streamTable.emplace(reinterpret_cast<uint32_t>(baseStream), baseStream);
+			SV::streamTable.emplace(baseStream->streamId, baseStream);
 
 			return baseStream;
 		}
 
 		Stream* SvCreateDLStreamAtPlayer(const float distance, const uint32_t maxPlayers, const uint16_t playerId, const uint32_t color, const std::string& name) override
 		{
-			if (SampVoiceComponent::instance == nullptr && SampVoiceComponent::GetPlayers() == nullptr)
+			if (SampVoiceComponent::instance == nullptr || SampVoiceComponent::GetPlayers() == nullptr)
 				return nullptr;
 
 			IPlayer* player = SampVoiceComponent::GetPlayers()->get(playerId);
@@ -371,14 +388,14 @@ namespace SV
 			const auto baseStream = static_cast<Stream*>(stream);
 
 			SV::dlstreamList.insert(static_cast<DynamicStream*>(stream));
-			SV::streamTable.emplace(reinterpret_cast<uint32_t>(baseStream), baseStream);
+			SV::streamTable.emplace(baseStream->streamId, baseStream);
 
 			return baseStream;
 		}
 
 		Stream* SvCreateDLStreamAtObject(const float distance, const uint32_t maxPlayers, const uint16_t objectId, const uint32_t color, const std::string& name) override
 		{
-			if (SampVoiceComponent::instance == nullptr && SampVoiceComponent::GetObjects() == nullptr)
+			if (SampVoiceComponent::instance == nullptr || SampVoiceComponent::GetObjects() == nullptr)
 				return nullptr;
 
 			IObject* object = SampVoiceComponent::GetObjects()->get(objectId);
@@ -391,7 +408,7 @@ namespace SV
 			const auto baseStream = static_cast<Stream*>(stream);
 
 			SV::dlstreamList.insert(static_cast<DynamicStream*>(stream));
-			SV::streamTable.emplace(reinterpret_cast<uint32_t>(baseStream), baseStream);
+			SV::streamTable.emplace(baseStream->streamId, baseStream);
 
 			return baseStream;
 		}
@@ -413,7 +430,11 @@ namespace SV
 		bool SvAttachListenerToStream(Stream* const stream, const uint16_t playerId) override
 		{
 			const auto pPlayerInfo = PlayerStore::RequestPlayerWithSharedAccess(playerId);
-			if (pPlayerInfo != nullptr) pPlayerInfo->listenerStreams.insert(stream);
+			if (pPlayerInfo != nullptr)
+			{
+				std::unique_lock lock(pPlayerInfo->streamsMutex);
+				pPlayerInfo->listenerStreams.insert(stream);
+			}
 			PlayerStore::ReleasePlayerWithSharedAccess(playerId);
 
 			return stream->AttachListener(playerId);
@@ -427,7 +448,11 @@ namespace SV
 		bool SvDetachListenerFromStream(Stream* const stream, const uint16_t playerId) override
 		{
 			const auto pPlayerInfo = PlayerStore::RequestPlayerWithSharedAccess(playerId);
-			if (pPlayerInfo != nullptr) pPlayerInfo->listenerStreams.erase(stream);
+			if (pPlayerInfo != nullptr)
+			{
+				std::unique_lock lock(pPlayerInfo->streamsMutex);
+				pPlayerInfo->listenerStreams.erase(stream);
+			}
 			PlayerStore::ReleasePlayerWithSharedAccess(playerId);
 
 			return stream->DetachListener(playerId);
@@ -440,7 +465,11 @@ namespace SV
 			for (const auto playerId : detachedListeners)
 			{
 				const auto pPlayerInfo = PlayerStore::RequestPlayerWithSharedAccess(playerId);
-				if (pPlayerInfo != nullptr) pPlayerInfo->listenerStreams.erase(stream);
+				if (pPlayerInfo != nullptr)
+				{
+					std::unique_lock lock(pPlayerInfo->streamsMutex);
+					pPlayerInfo->listenerStreams.erase(stream);
+				}
 				PlayerStore::ReleasePlayerWithSharedAccess(playerId);
 			}
 		}
@@ -450,7 +479,24 @@ namespace SV
 		bool SvAttachSpeakerToStream(Stream* const stream, const uint16_t playerId) override
 		{
 			const auto pPlayerInfo = PlayerStore::RequestPlayerWithUniqueAccess(playerId);
-			if (pPlayerInfo != nullptr) pPlayerInfo->speakerStreams.insert(stream);
+			if (pPlayerInfo != nullptr)
+			{
+				std::unique_lock lock(pPlayerInfo->streamsMutex);
+				pPlayerInfo->speakerStreams.emplace(stream, PlayerInfo::kAllChannels);
+			}
+			PlayerStore::ReleasePlayerWithUniqueAccess(playerId);
+
+			return stream->AttachSpeaker(playerId);
+		}
+
+		bool SvAttachSpeakerToStreamWithChannels(Stream* const stream, const uint16_t playerId, const uint32_t channelMask) override
+		{
+			const auto pPlayerInfo = PlayerStore::RequestPlayerWithUniqueAccess(playerId);
+			if (pPlayerInfo != nullptr)
+			{
+				std::unique_lock lock(pPlayerInfo->streamsMutex);
+				pPlayerInfo->speakerStreams.emplace(stream, channelMask);
+			}
 			PlayerStore::ReleasePlayerWithUniqueAccess(playerId);
 
 			return stream->AttachSpeaker(playerId);
@@ -464,7 +510,11 @@ namespace SV
 		bool SvDetachSpeakerFromStream(Stream* const stream, const uint16_t playerId) override
 		{
 			const auto pPlayerInfo = PlayerStore::RequestPlayerWithUniqueAccess(playerId);
-			if (pPlayerInfo != nullptr) pPlayerInfo->speakerStreams.erase(stream);
+			if (pPlayerInfo != nullptr)
+			{
+				std::unique_lock lock(pPlayerInfo->streamsMutex);
+				pPlayerInfo->speakerStreams.erase(stream);
+			}
 			PlayerStore::ReleasePlayerWithUniqueAccess(playerId);
 
 			return stream->DetachSpeaker(playerId);
@@ -477,7 +527,11 @@ namespace SV
 			for (const auto playerId : detachedSpeakers)
 			{
 				const auto pPlayerInfo = PlayerStore::RequestPlayerWithUniqueAccess(playerId);
-				if (pPlayerInfo != nullptr) pPlayerInfo->speakerStreams.erase(stream);
+				if (pPlayerInfo != nullptr)
+				{
+					std::unique_lock lock(pPlayerInfo->streamsMutex);
+					pPlayerInfo->speakerStreams.erase(stream);
+				}
 				PlayerStore::ReleasePlayerWithUniqueAccess(playerId);
 			}
 		}
@@ -528,7 +582,11 @@ namespace SV
 			for (const auto playerId : detachedSpeakers)
 			{
 				const auto pPlayerInfo = PlayerStore::RequestPlayerWithUniqueAccess(playerId);
-				if (pPlayerInfo != nullptr) pPlayerInfo->speakerStreams.erase(stream);
+				if (pPlayerInfo != nullptr)
+				{
+					std::unique_lock lock(pPlayerInfo->streamsMutex);
+					pPlayerInfo->speakerStreams.erase(stream);
+				}
 				PlayerStore::ReleasePlayerWithUniqueAccess(playerId);
 			}
 
@@ -537,18 +595,32 @@ namespace SV
 			for (const auto playerId : detachedListeners)
 			{
 				const auto pPlayerInfo = PlayerStore::RequestPlayerWithSharedAccess(playerId);
-				if (pPlayerInfo != nullptr) pPlayerInfo->listenerStreams.erase(stream);
+				if (pPlayerInfo != nullptr)
+				{
+					std::unique_lock lock(pPlayerInfo->streamsMutex);
+					pPlayerInfo->listenerStreams.erase(stream);
+				}
 				PlayerStore::ReleasePlayerWithSharedAccess(playerId);
 			}
 
-			SV::streamTable.erase(reinterpret_cast<uint32_t>(stream));
+			SV::streamTable.erase(stream->streamId);
 			if (const auto dlStream = dynamic_cast<DynamicStream*>(stream))
 				SV::dlstreamList.erase(dlStream);
 
 			delete stream;
 		}
 
+		void SvSetStreamTarget(Stream* const stream, const uint8_t targetType, const uint16_t targetId) override
+		{
+			stream->UpdateTarget(targetType, targetId);
+		}
+
 		// -------------------------------------------------------------------------------------
+
+		Effect* SvEffectCreate() override
+		{
+			return EffectManager::CreateEmptyEffect();
+		}
 
 		Effect* SvEffectCreateChorus(const int priority, const float wetdrymix, const float depth, const float feedback, const float frequency, const uint32_t waveform, const float delay, const uint32_t phase) override
 		{
@@ -610,6 +682,100 @@ namespace SV
 			delete effect;
 		}
 
+		bool SvEffectAppendFilter(Effect* const effect, const uint32_t number, const int32_t priority, const void* const params, const uint32_t paramSize) override
+		{
+			return effect->AppendFilter(number, priority, params, paramSize);
+		}
+
+		bool SvEffectRemoveFilter(Effect* const effect, const uint32_t number, const int32_t priority) override
+		{
+			return effect->RemoveFilter(number, priority);
+		}
+
+		void SvSetIcon(Stream* const stream, const std::string& icon) override
+		{
+			stream->SetIcon(icon);
+		}
+
+		bool SvEnableTransiter(Stream* const stream) override
+		{
+			stream->SetTransiter(true);
+			return true;
+		}
+
+		bool SvDisableTransiter(Stream* const stream) override
+		{
+			stream->SetTransiter(false);
+			return true;
+		}
+
+		bool SvCheckTransiter(Stream* const stream) override
+		{
+			return stream->GetTransiter();
+		}
+
+		bool SvEnableListener(const uint16_t playerId) override
+		{
+			const auto pPlayerInfo = PlayerStore::RequestPlayerWithUniqueAccess(playerId);
+			if (pPlayerInfo == nullptr) return false;
+			pPlayerInfo->listenerEnabled.store(true, std::memory_order_relaxed);
+			PlayerStore::ReleasePlayerWithUniqueAccess(playerId);
+			return true;
+		}
+
+		bool SvDisableListener(const uint16_t playerId) override
+		{
+			const auto pPlayerInfo = PlayerStore::RequestPlayerWithUniqueAccess(playerId);
+			if (pPlayerInfo == nullptr) return false;
+			pPlayerInfo->listenerEnabled.store(false, std::memory_order_relaxed);
+			PlayerStore::ReleasePlayerWithUniqueAccess(playerId);
+			return true;
+		}
+
+		bool SvCheckListener(const uint16_t playerId) override
+		{
+			const auto pPlayerInfo = PlayerStore::RequestPlayerWithSharedAccess(playerId);
+			if (pPlayerInfo == nullptr) return false;
+			const auto result = pPlayerInfo->listenerEnabled.load(std::memory_order_relaxed);
+			PlayerStore::ReleasePlayerWithSharedAccess(playerId);
+			return result;
+		}
+
+		bool SvEnableSpeaker(const uint16_t playerId, const uint32_t channels) override
+		{
+			const auto pPlayerInfo = PlayerStore::RequestPlayerWithUniqueAccess(playerId);
+			if (pPlayerInfo == nullptr) return false;
+			if (channels == 0) { PlayerStore::ReleasePlayerWithUniqueAccess(playerId); return false; }
+			const auto prev = pPlayerInfo->enabledChannels.fetch_or(channels, std::memory_order_relaxed);
+			const bool changed = (prev & channels) != channels;
+			if (changed)
+				pPlayerInfo->speakerEnabled.store(true, std::memory_order_relaxed);
+			PlayerStore::ReleasePlayerWithUniqueAccess(playerId);
+			return changed;
+		}
+
+		bool SvDisableSpeaker(const uint16_t playerId, const uint32_t channels) override
+		{
+			const auto pPlayerInfo = PlayerStore::RequestPlayerWithUniqueAccess(playerId);
+			if (pPlayerInfo == nullptr) return false;
+			if (channels == 0) { PlayerStore::ReleasePlayerWithUniqueAccess(playerId); return false; }
+			const auto prev = pPlayerInfo->enabledChannels.fetch_and(~channels, std::memory_order_relaxed);
+			const bool changed = (prev & channels) != 0;
+			if (changed && (prev & ~channels) == 0)
+				pPlayerInfo->speakerEnabled.store(false, std::memory_order_relaxed);
+			PlayerStore::ReleasePlayerWithUniqueAccess(playerId);
+			return changed;
+		}
+
+		bool SvCheckSpeaker(const uint16_t playerId, const uint32_t channels) override
+		{
+			const auto pPlayerInfo = PlayerStore::RequestPlayerWithSharedAccess(playerId);
+			if (pPlayerInfo == nullptr) return false;
+			const auto result = (pPlayerInfo->enabledChannels.load(std::memory_order_relaxed) & channels) != 0;
+			PlayerStore::ReleasePlayerWithSharedAccess(playerId);
+			return result;
+		}
+
 	};
 
 	void ConnectHandler(const uint16_t playerId, const SV::ConnectPacket& connectStruct) noexcept
@@ -633,11 +799,21 @@ namespace SV
 
 	static void Tick() noexcept
 	{
-		static auto configuredUpdateRate = std::chrono::steady_clock::duration(Milliseconds(SampVoiceComponent::GetSampVoiceConfigInt("sampvoice.updaterate")));
+		static auto configuredUpdateRate = std::chrono::steady_clock::duration(Milliseconds([]{
+			int v = SampVoiceComponent::GetSampVoiceConfigInt("sampvoice.updaterate");
+			return v > 0 ? v : 200;
+		}()));
 
 		const TimePoint now = Time::now();
 		if ((now - lastUpdateTime) > configuredUpdateRate)
 		{
+			// Cache all player positions once per tick (avoids O(S*P) SDK calls)
+			IPlayerPool* playerPool = SampVoiceComponent::GetPlayers();
+			for (IPlayer* player : playerPool->entries())
+			{
+				PlayerStore::cachedPositions[player->getID()] = player->getPosition();
+			}
+
 			for (const auto dlStream : SV::dlstreamList)
 			{
 				dlStream->Tick();
@@ -657,13 +833,19 @@ namespace SV
 					if (controlPacketRef->length != sizeof(*stData)) break;
 
 					const auto keyId = stData->keyId;
-					bool pressKeyAllowStatus{ false };
 
-					const auto pPlayerInfo = PlayerStore::RequestPlayerWithSharedAccess(senderId);
-					if (pPlayerInfo != nullptr) pressKeyAllowStatus = pPlayerInfo->keys.find(keyId) != pPlayerInfo->keys.end();
-					PlayerStore::ReleasePlayerWithSharedAccess(senderId);
+					const auto pPlayerInfo = PlayerStore::RequestPlayerWithUniqueAccess(senderId);
+					if (pPlayerInfo == nullptr) break;
 
-					if (!pressKeyAllowStatus) break;
+					const auto iter = pPlayerInfo->keys.find(keyId);
+					if (iter == pPlayerInfo->keys.end())
+					{
+						PlayerStore::ReleasePlayerWithUniqueAccess(senderId);
+						break;
+					}
+
+					pPlayerInfo->activeChannels.fetch_or(iter->second, std::memory_order_relaxed);
+					PlayerStore::ReleasePlayerWithUniqueAccess(senderId);
 
 					Pawn::OnPlayerActivationKeyPressForAll(senderId, keyId);
 				} break;
@@ -673,13 +855,19 @@ namespace SV
 					if (controlPacketRef->length != sizeof(*stData)) break;
 
 					const auto keyId = stData->keyId;
-					bool releaseKeyAllowStatus{ false };
 
-					const auto pPlayerInfo = PlayerStore::RequestPlayerWithSharedAccess(senderId);
-					if (pPlayerInfo != nullptr) releaseKeyAllowStatus = pPlayerInfo->keys.find(keyId) != pPlayerInfo->keys.end();
-					PlayerStore::ReleasePlayerWithSharedAccess(senderId);
+					const auto pPlayerInfo = PlayerStore::RequestPlayerWithUniqueAccess(senderId);
+					if (pPlayerInfo == nullptr) break;
 
-					if (!releaseKeyAllowStatus) break;
+					const auto iter = pPlayerInfo->keys.find(keyId);
+					if (iter == pPlayerInfo->keys.end())
+					{
+						PlayerStore::ReleasePlayerWithUniqueAccess(senderId);
+						break;
+					}
+
+					pPlayerInfo->activeChannels.fetch_and(~iter->second, std::memory_order_relaxed);
+					PlayerStore::ReleasePlayerWithUniqueAccess(senderId);
 
 					Pawn::OnPlayerActivationKeyReleaseForAll(senderId, keyId);
 				} break;
@@ -716,7 +904,7 @@ void SampVoiceComponent::onInit(IComponentList* components)
 		StringView name = componentName();
 		ompCore->logLn(LogLevel::Error,
 			"Error loading component %.*s: Pawn component not loaded",
-			name.length(), name.data());
+			static_cast<int>(name.length()), name.data());
 		return;
 	}
 
@@ -725,7 +913,7 @@ void SampVoiceComponent::onInit(IComponentList* components)
 		StringView name = componentName();
 		ompCore->logLn(LogLevel::Error,
 			"Error loading component %.*s: Objects component not loaded",
-			name.length(), name.data());
+			static_cast<int>(name.length()), name.data());
 		return;
 	}
 
@@ -734,7 +922,7 @@ void SampVoiceComponent::onInit(IComponentList* components)
 		StringView name = componentName();
 		ompCore->logLn(LogLevel::Error,
 			"Error loading component %.*s: Vehicles component not loaded",
-			name.length(), name.data());
+			static_cast<int>(name.length()), name.data());
 		return;
 	}
 
@@ -902,7 +1090,7 @@ bool SampVoiceComponent::GetSampVoiceConfigBool(StringView key)
 int SampVoiceComponent::GetSampVoiceConfigInt(StringView key)
 {
 	ICore* ompCore = SampVoiceComponent::GetCore();
-	uint16_t value = 0;
+	int value = 0;
 	if (ompCore)
 	{
 		int* ompConfigValue = ompCore->getConfig().getInt(key);

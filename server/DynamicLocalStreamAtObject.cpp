@@ -37,7 +37,7 @@ DynamicLocalStreamAtObject::DynamicLocalStreamAtObject(
 
 	PackWrap(this->packetCreateStream, SV::ControlPacketType::createLStreamAtObject, sizeof(SV::CreateLStreamAtPacket) + nameLength);
 
-	PackGetStruct(&*this->packetCreateStream, SV::CreateLStreamAtPacket)->stream = reinterpret_cast<uint32_t>(static_cast<Stream*>(this));
+	PackGetStruct(&*this->packetCreateStream, SV::CreateLStreamAtPacket)->stream = this->streamId;
 	std::memcpy(PackGetStruct(&*this->packetCreateStream, SV::CreateLStreamAtPacket)->name, nameString, nameLength);
 	PackGetStruct(&*this->packetCreateStream, SV::CreateLStreamAtPacket)->distance = distance;
 	PackGetStruct(&*this->packetCreateStream, SV::CreateLStreamAtPacket)->target = objectId;
@@ -54,10 +54,11 @@ DynamicLocalStreamAtObject::DynamicLocalStreamAtObject(
 		{
 			if (PlayerStore::IsPlayerHasPlugin(player->getID()))
 			{
-				float distanceToPlayer = glm::distance(player->getPosition(), streamPosition);
-				if (distanceToPlayer <= distance)
+				Vector3 diff = player->getPosition() - streamPosition;
+				float distSq = glm::dot(diff, diff);
+				if (distSq <= distance * distance)
 				{
-					playerList.emplace(distanceToPlayer, player->getID());
+					playerList.emplace(glm::sqrt(distSq), player->getID());
 				}
 			}
 		}
@@ -92,12 +93,14 @@ void DynamicLocalStreamAtObject::Tick()
 		{
 			if (PlayerStore::IsPlayerHasPlugin(player->getID()))
 			{
-				float distanceToPlayer = glm::distance(player->getPosition(), streamPosition);;
-				if (distanceToPlayer <= streamDistance)
+				Vector3 diff = PlayerStore::cachedPositions[player->getID()] - streamPosition;
+				float distSq = glm::dot(diff, diff);
+				float maxDistSq = streamDistance * streamDistance;
+				if (distSq <= maxDistSq)
 				{
 					if (!this->HasListener(player->getID()))
 					{
-						playerList.emplace(distanceToPlayer, player->getID());
+						playerList.emplace(glm::sqrt(distSq), player->getID());
 					}
 				}
 				else if (this->HasListener(player->getID()))

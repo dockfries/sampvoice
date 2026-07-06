@@ -31,7 +31,7 @@ namespace SV
 
     constexpr WORD  kNonePlayer = 0xffff;
 
-    constexpr BYTE  kVersion = 11;
+    constexpr BYTE  kVersion = 13;
     constexpr DWORD kSignature = 0xDeadBeef;
 
     constexpr DWORD kAudioUpdateThreads = 4;
@@ -72,6 +72,9 @@ namespace SV
             updateLPStreamPosition,
             deleteStream,
 
+            // v3.1 added
+            // ---------------------
+
             pressKey,
             releaseKey,
 
@@ -81,7 +84,15 @@ namespace SV
             setStreamParameter,
             slideStreamParameter,
             createEffect,
-            deleteEffect
+            deleteEffect,
+
+            // v4.0 added
+            // ---------------------
+
+            setStreamIcon,
+            appendFilter,
+            removeFilter,
+            updateStreamTarget
         };
     };
 
@@ -215,6 +226,39 @@ namespace SV
     {
         UINT32 stream;
         UINT32 effect;
+    };
+
+    // v4.0 added
+    // -----------------------------------
+
+    struct SetStreamIconPacket
+    {
+        UINT32 stream;
+        CHAR   name[];
+    };
+
+    struct AppendFilterPacket
+    {
+        UINT32 stream;
+        UINT32 effect;
+        UINT32 number;
+        INT32  priority;
+        UINT8  params[];
+    };
+
+	struct RemoveFilterPacket
+    {
+        UINT32 stream;
+        UINT32 effect;
+        UINT32 number;
+        INT32  priority;
+    };
+
+    struct UpdateStreamTargetPacket
+    {
+        UINT32 stream;
+        UINT8  targetType;
+        UINT16 targetId;
     };
 
 #pragma pack(pop)

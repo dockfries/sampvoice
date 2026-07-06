@@ -31,7 +31,7 @@ namespace SV {
 	constexpr uint16_t kNonePlayer = 0xffff;
 	constexpr uint32_t kDefaultVoiceThreadsCount = 8;
 	constexpr uint32_t kDefaultBitrate = 24000;
-	constexpr uint8_t kVersion = 11;
+	constexpr uint8_t kVersion = 13;
 	constexpr uint32_t kSignature = 0xDeadBeef;
 	constexpr const char* kSignaturePattern = "\xef\xbe\xad\xde";
 	constexpr const char* kSignatureMask = "xxxx";
@@ -63,6 +63,9 @@ namespace SV {
 			updateLPStreamPosition,
 			deleteStream,
 
+			// v3.1 added
+			// ---------------------
+
 			pressKey,
 			releaseKey,
 
@@ -72,7 +75,15 @@ namespace SV {
 			setStreamParameter,
 			slideStreamParameter,
 			createEffect,
-			deleteEffect
+			deleteEffect,
+
+			// v4.0 added
+			// ---------------------
+
+			setStreamIcon,
+			appendFilter,
+			removeFilter,
+			updateStreamTarget
 		};
 	};
 
@@ -211,6 +222,35 @@ namespace SV {
 	struct DeleteEffectPacket {
 		uint32_t stream;
 		uint32_t effect;
+	};
+
+	// v4.0 added
+	// -----------------------------------
+
+	struct SetStreamIconPacket {
+		uint32_t stream;
+		char    name[];
+	};
+
+	struct AppendFilterPacket {
+		uint32_t stream;
+		uint32_t effect;
+		uint32_t number;
+		int32_t  priority;
+		uint8_t  params[];
+	};
+
+	struct RemoveFilterPacket {
+		uint32_t stream;
+		uint32_t effect;
+		uint32_t number;
+		int32_t  priority;
+	};
+
+	struct UpdateStreamTargetPacket {
+		uint32_t stream;
+		uint8_t  targetType;
+		uint16_t targetId;
 	};
 
 #pragma pack(pop)

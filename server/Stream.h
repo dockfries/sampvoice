@@ -12,11 +12,13 @@
 
 #include <atomic>
 #include <cstdint>
+#include <string>
 #include <functional>
 #include <array>
 #include <vector>
 #include <set>
 #include <map>
+#include <shared_mutex>
 
 #include "sdk.hpp"
 
@@ -43,12 +45,24 @@ protected:
 
 public:
 
+	const uint32_t streamId;
+
+	static std::atomic<uint32_t> nextStreamId;
+
 	virtual ~Stream() noexcept;
 
 public:
 
 	void SendVoicePacket(VoicePacket& packet) const;
 	void SendControlPacket(ControlPacket& packet) const;
+
+	void SetIcon(const std::string& icon);
+	const std::string& GetIcon() const noexcept;
+
+	void SetTransiter(bool enable) noexcept;
+	bool GetTransiter() const noexcept;
+
+	virtual void UpdateTarget(uint8_t targetType, uint16_t targetId);
 
 	virtual bool AttachListener(uint16_t playerId);
 	bool HasListener(uint16_t playerId) const noexcept;
@@ -80,6 +94,12 @@ protected:
 
 	std::array<std::atomic_bool, PLAYER_POOL_SIZE> attachedSpeakers{};
 	std::array<std::atomic_bool, PLAYER_POOL_SIZE> attachedListeners{};
+
+	mutable std::shared_mutex listenerMutex_;
+	std::vector<uint16_t> listenerIds_;
+
+	std::atomic<bool> transiter_{ true };
+	std::string icon_;
 
 	ControlPacketContainerPtr packetCreateStream{ nullptr };
 	ControlPacketContainerPtr packetDeleteStream{ nullptr };

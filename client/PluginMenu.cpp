@@ -11,9 +11,8 @@
 
 #include "PluginMenu.h"
 
-#include <samp/CChat.h>
-#include <samp/CInput.h>
-#include <samp/CScoreboard.h>
+#include <svapi.h>
+#include <util/Addresses.h>
 #include <util/ImGuiUtil.h>
 #include <util/GameUtil.h>
 #include <util/Logger.h>
@@ -24,7 +23,7 @@
 #include "Playback.h"
 #include "Record.h"
 
-bool PluginMenu::Init(IDirect3DDevice9* const pDevice, const AddressesBase& const addrBase,
+bool PluginMenu::Init(IDirect3DDevice9* const pDevice,
     const Resource& const rShader, const Resource& const rLogo, const Resource& const rFont) noexcept
 {
     if (pDevice == nullptr)
@@ -36,11 +35,11 @@ bool PluginMenu::Init(IDirect3DDevice9* const pDevice, const AddressesBase& cons
     try
     {
         const BYTE returnOpcode { 0xC3 };
-        PluginMenu::openChatFuncPatch = MakePatch(addrBase.GetOpenChatFunc(),
+        PluginMenu::openChatFuncPatch = MakePatch(Addresses::GetOpenChatFunc(),
             &returnOpcode, sizeof(returnOpcode), false);
-        PluginMenu::openScoreboardFuncPatch = MakePatch(addrBase.GetOpenScoreboardFunc(),
+        PluginMenu::openScoreboardFuncPatch = MakePatch(Addresses::GetOpenScoreboardFunc(),
             &returnOpcode, sizeof(returnOpcode), false);
-        PluginMenu::switchModeFuncPatch = MakePatch(addrBase.GetSwitchModeFunc(),
+        PluginMenu::switchModeFuncPatch = MakePatch(Addresses::GetSwitchModeFunc(),
             &returnOpcode, sizeof(returnOpcode), false);
     }
     catch (const std::exception& exception)
@@ -251,7 +250,7 @@ void PluginMenu::Free() noexcept
     PluginMenu::openScoreboardFuncPatch.reset();
     PluginMenu::switchModeFuncPatch.reset();
 
-    PluginMenu::prevChatMode = SAMP::CChat::Normal;
+    PluginMenu::prevChatMode = sv::CChat::DISPLAY_MODE_NORMAL;
     PluginMenu::blurLevelDeviation = 0.f;
     PluginMenu::blurLevel = 0.f;
 
@@ -271,20 +270,20 @@ bool PluginMenu::Show() noexcept
 
     PluginMenu::blurLevelDeviation = kBlurLevelIncrement;
 
-    if (const auto pChat = SAMP::pChat(); pChat != nullptr)
+    if (const auto pChat = sv::RefChat(); pChat != nullptr)
     {
         PluginMenu::prevChatMode = pChat->m_nMode;
-        pChat->m_nMode = SAMP::CChat::Off;
+        pChat->m_nMode = sv::CChat::DISPLAY_MODE_OFF;
     }
 
-    if (const auto pScoreboard = SAMP::pScoreboard();
+    if (const auto pScoreboard = sv::RefScoreboard();
         pScoreboard != nullptr && pScoreboard->m_bIsEnabled)
     {
         pScoreboard->m_bIsEnabled = FALSE;
         pScoreboard->Close(true);
     }
 
-    if (const auto pInputBox = SAMP::pInputBox();
+    if (const auto pInputBox = sv::RefInputBox();
         pInputBox != nullptr && pInputBox->m_bEnabled)
     {
         pInputBox->m_bEnabled = FALSE;
@@ -312,7 +311,7 @@ void PluginMenu::Hide() noexcept
 
     PluginMenu::blurLevelDeviation = kBlurLevelDecrement;
 
-    if (const auto pChat = SAMP::pChat(); pChat != nullptr)
+    if (const auto pChat = sv::RefChat(); pChat != nullptr)
     {
         pChat->m_nMode = PluginMenu::prevChatMode;
     }
@@ -526,7 +525,9 @@ void PluginMenu::Render() noexcept
                             Record::SetMicroVolume(PluginMenu::microVolume);
                         }
 
-                        if (ImGui::BeginCombo(kTab2Desc1DeviceNameText, devList[PluginMenu::deviceIndex].c_str()))
+                        const int safeDevIdx = (PluginMenu::deviceIndex >= 0 && PluginMenu::deviceIndex < static_cast<int>(devList.size()))
+                            ? PluginMenu::deviceIndex : 0;
+                        if (ImGui::BeginCombo(kTab2Desc1DeviceNameText, devList[safeDevIdx].c_str()))
                         {
                             for (int i { 0 }; i < devList.size(); ++i)
                             {
@@ -658,16 +659,17 @@ void PluginMenu::Render() noexcept
                     ImGuiWindowFlags_NoMove |
                     ImGuiWindowFlags_NoResize))
                 {
-                    if (const auto pNetGame = SAMP::pNetGame(); pNetGame != nullptr)
+                    if (const auto pNetGame = sv::RefNetGame(); pNetGame != nullptr)
                     {
-                        if (const auto pPlayerPool = pNetGame->GetPlayerPool(); pPlayerPool != nullptr)
+                        if (const auto pPlayerPool = pNetGame->m_pPools->m_pPlayer; pPlayerPool != nullptr)
                         {
-                            for (WORD playerId { 0 }; playerId < MAX_PLAYERS; ++playerId)
+                            for (WORD playerId { 0 }; playerId < sv::CPlayerPool::MAX_PLAYERS; ++playerId)
                             {
                                 if (pPlayerPool->IsConnected(playerId) == FALSE)
                                     continue;
 
-                                if (const auto playerName = pPlayerPool->GetName(playerId); playerName != nullptr)
+                                if (pPlayerPool->m_pObject[playerId] == nullptr) continue;
+                                if (const auto playerName = pPlayerPool->m_pObject[playerId]->m_szNick.c_str(); playerName != nullptr)
                                 {
                                     if ((PluginMenu::nBuffer[0] == '\0' || (iPlayerId != SV::kNonePlayer ? playerId == iPlayerId :
                                          static_cast<bool>(std::strstr(playerName, PluginMenu::nBuffer.data())))) &&
@@ -683,9 +685,11 @@ void PluginMenu::Render() noexcept
                                         }
 
                                         ImGui::SetCursorPos({ oldCurPos.x + 5.f, oldCurPos.y + 1.f });
-                                        if (auto stPlayer = SAMP::pNetGame()->GetPlayerPool()->GetPlayer(playerId))
-                                            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(htonl(stPlayer->GetColorAsRGBA() |
-                                                0xff000000)), "(%hu) %s", playerId, playerName);
+                                        if (const auto pInfo = pPlayerPool->m_pObject[playerId]; pInfo != nullptr)
+                                            if (auto stPlayer = pInfo->m_pPlayer)
+                                                ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(htonl(stPlayer->GetColorAsRGBA() |
+                                                    0xff000000)), "(%hu) %s", playerId, playerName);
+                                            else ImGui::Text("(%hu) %s", playerId, playerName);
                                         else ImGui::Text("(%hu) %s", playerId, playerName);
                                         ImGui::PopID();
                                     }
@@ -742,11 +746,7 @@ void PluginMenu::Render() noexcept
 
                         ImGui::PushID(&playerInfo);
 
-                        if (ImGui::Button("##label", { listWidth, ImGui::GetFontSize() + 2.f }))
-                        {
-                            // Remove player from black list
-                            BlackList::UnlockPlayer(playerInfo.playerName);
-                        }
+                        bool doUnlock = ImGui::Button("##label", { listWidth, ImGui::GetFontSize() + 2.f });
 
                         ImGui::PopID();
 
@@ -754,9 +754,14 @@ void PluginMenu::Render() noexcept
 
                         if (playerInfo.playerId != SV::kNonePlayer)
                         {
-                            if (auto stPlayer = SAMP::pNetGame()->GetPlayerPool()->GetPlayer(playerInfo.playerId))
-                                ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(htonl(stPlayer->GetColorAsRGBA())),
-                                    "%s (%hu)", playerInfo.playerName.c_str(), playerInfo.playerId);
+                            const auto pNetGame2 = sv::RefNetGame();
+                            const auto pPlayerPool2 = pNetGame2 ? pNetGame2->m_pPools->m_pPlayer : nullptr;
+                            const auto pInfo = pPlayerPool2 ? pPlayerPool2->m_pObject[playerInfo.playerId] : nullptr;
+                            if (pInfo != nullptr)
+                                if (auto stPlayer = pInfo->m_pPlayer)
+                                    ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(htonl(stPlayer->GetColorAsRGBA())),
+                                        "%s (%hu)", playerInfo.playerName.c_str(), playerInfo.playerId);
+                                else ImGui::Text("%s (%hu)", playerInfo.playerName.c_str(), playerInfo.playerId);
                             else ImGui::Text("%s (%hu)", playerInfo.playerName.c_str(), playerInfo.playerId);
                         }
                         else ImGui::TextDisabled("%s", playerInfo.playerName.c_str());
@@ -767,6 +772,12 @@ void PluginMenu::Render() noexcept
                         if (playerInfo.playerId != SV::kNonePlayer)
                             ImGui::GetWindowDrawList()->AddCircleFilled(cPos, ImGui::GetFontSize() / 4.f, 0xff7dfe3f);
                         else ImGui::GetWindowDrawList()->AddCircle(cPos, ImGui::GetFontSize() / 4.f, 0xff808080);
+
+                        if (doUnlock)
+                        {
+                            BlackList::UnlockPlayer(playerInfo.playerName);
+                            break;
+                        }
                     }
 
                     ImGui::EndChildFrame();

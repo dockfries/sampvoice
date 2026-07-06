@@ -14,6 +14,7 @@
 #include <memory>
 
 #include <d3d9.h>
+#include <rpc.h>
 #include <d3dx9.h>
 
 #include "Resource.h"

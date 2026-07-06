@@ -1,24 +1,11 @@
-/*
-    This is a SampVoice project file
-    Author: CyberMor <cyber.mor.2020@gmail.ru>
-    open.mp version author: AmyrAhmady (iAmir) <hhm6@yahoo.com>
-
-    See more here https://github.com/AmyrAhmady/sampvoice
-    Original repository: https://github.com/CyberMor/sampvoice
-
-    Copyright (c) Daniel (CyberMor) 2020 All rights reserved
-*/
-
 #include "Samp.h"
 
-#include <samp/CChat.h>
-#include <samp/CInput.h>
-#include <samp/CGameSA.h>
-#include <samp/CScoreboard.h>
+#include <svapi.h>
 
+#include "Addresses.h"
 #include "Logger.h"
 
-bool Samp::Init(const AddressesBase& addrBase) noexcept
+bool Samp::Init(const DWORD sampBaseAddr) noexcept
 {
     if (Samp::initStatus)
         return false;
@@ -27,8 +14,8 @@ bool Samp::Init(const AddressesBase& addrBase) noexcept
 
     try
     {
-        Samp::hookSampFree = MakeJumpHook(addrBase.GetSampDestructAddr(), Samp::HookSampFree);
-        Samp::hookSampInit = MakeJumpHook(addrBase.GetSampInitAddr(), Samp::HookSampInit);
+        Samp::hookSampFree = MakeJumpHook(Addresses::GetSampDestructAddr(), Samp::HookSampFree);
+        Samp::hookSampInit = MakeJumpHook(Addresses::GetSampInitAddr(), Samp::HookSampInit);
     }
     catch (const std::exception& exception)
     {
@@ -37,8 +24,6 @@ bool Samp::Init(const AddressesBase& addrBase) noexcept
         Samp::hookSampFree.reset();
         return false;
     }
-
-    SAMP::InitSamp(addrBase.GetBaseAddr());
 
     Samp::loadCallbacks.clear();
     Samp::exitCallbacks.clear();
@@ -91,9 +76,9 @@ void Samp::Free() noexcept
     Samp::initStatus = false;
 }
 
-void Samp::AddClientCommand(const char* const cmdName, const SAMP::CMDPROC cmdHandler) noexcept
+void Samp::AddClientCommand(const char* const cmdName, const CMDPROC cmdHandler) noexcept
 {
-    constexpr int kMaxCommands = MAX_CLIENT_CMDS - 1;
+    constexpr int kMaxCommands = 143;
     constexpr size_t kMaxCommandLength = 30;
 
     if (cmdName == nullptr || *cmdName == '\0' || cmdHandler == nullptr)
@@ -102,7 +87,7 @@ void Samp::AddClientCommand(const char* const cmdName, const SAMP::CMDPROC cmdHa
     if (!Samp::loadStatus)
         return;
 
-    if (const auto pInputBox = SAMP::pInputBox();
+    if (const auto pInputBox = sv::RefInputBox();
         pInputBox != nullptr && pInputBox->m_nCommandCount < kMaxCommands &&
         std::strlen(cmdName) <= kMaxCommandLength)
     {
@@ -119,9 +104,9 @@ void Samp::AddMessageToChat(const D3DCOLOR color, const char* const message) noe
     if (!Samp::loadStatus)
         return;
 
-    if (const auto pChat = SAMP::pChat(); pChat != nullptr)
+    if (const auto pChat = sv::RefChat(); pChat != nullptr)
     {
-        pChat->AddEntry(SAMP::ChatEntry::CHAT_TYPE_DEBUG,
+        pChat->AddEntry(sv::CChat::ENTRY_TYPE_DEBUG,
                         message, nullptr, color, NULL);
     }
 }
@@ -131,15 +116,15 @@ void Samp::ToggleSampCursor(const int mode) noexcept
     if (!Samp::loadStatus)
         return;
 
-    if (const auto pInputBox = SAMP::pInputBox();
+    if (const auto pInputBox = sv::RefInputBox();
         pInputBox == nullptr || pInputBox->m_bEnabled == TRUE)
         return;
 
-    if (const auto pScoreboard = SAMP::pScoreboard();
+    if (const auto pScoreboard = sv::RefScoreboard();
         pScoreboard == nullptr || pScoreboard->m_bIsEnabled == TRUE)
         return;
 
-    if (const auto pGame = SAMP::pGame();
+    if (const auto pGame = sv::RefGame();
         pGame != nullptr && pGame->IsMenuVisible() == FALSE)
     {
         pGame->SetCursorMode(mode, mode == 0 ? TRUE : FALSE);

@@ -10,6 +10,10 @@ StreamAtPoint::StreamAtPoint(const D3DCOLOR color, std::string name,
     , position(position)
 {}
 
+void StreamAtPoint::SetTarget(const BYTE /*targetType*/, const WORD /*targetId*/)
+{
+}
+
 void StreamAtPoint::SetPosition(const CVector& position) noexcept
 {
     this->position = position;

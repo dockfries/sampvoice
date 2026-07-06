@@ -4,38 +4,76 @@
 
 Effect::Effect(const DWORD type, const int priority,
                const void* const paramPtr, const DWORD paramSize)
-    : type(type), priority(priority), params(paramSize)
 {
-    std::memcpy(this->params.data(), paramPtr, paramSize);
+    Filter filter;
+    filter.type = type;
+    filter.priority = priority;
+    filter.params.resize(paramSize);
+    if (paramSize > 0)
+        std::memcpy(filter.params.data(), paramPtr, paramSize);
+    this->filters.push_back(std::move(filter));
 }
 
 Effect::~Effect() noexcept
 {
-    for (const auto& fxHandle : this->fxHandles)
+    for (const auto& filter : this->filters)
     {
-        BASS_ChannelRemoveFX(fxHandle.first, fxHandle.second);
+        for (const auto& fxHandle : filter.fxHandles)
+        {
+            BASS_ChannelRemoveFX(fxHandle.first, fxHandle.second);
+        }
     }
 }
 
 void Effect::Apply(const Channel& channel)
 {
-    if (const auto fxHandle = BASS_ChannelSetFX(channel.GetHandle(),
-        this->type, this->priority); fxHandle != NULL)
+    for (auto& filter : this->filters)
     {
-        if (BASS_FXSetParameters(fxHandle, this->params.data()) == FALSE)
+        if (const auto fxHandle = BASS_ChannelSetFX(channel.GetHandle(),
+            filter.type, filter.priority); fxHandle != NULL)
         {
-            Logger::LogToFile("[sv:err:effect:apply] : failed "
-                "to set parameters (code:%d)", BASS_ErrorGetCode());
-            BASS_ChannelRemoveFX(channel.GetHandle(), fxHandle);
+            if (BASS_FXSetParameters(fxHandle, filter.params.data()) == FALSE)
+            {
+                Logger::LogToFile("[sv:err:effect:apply] : failed "
+                    "to set parameters (code:%d)", BASS_ErrorGetCode());
+                BASS_ChannelRemoveFX(channel.GetHandle(), fxHandle);
+            }
+            else
+            {
+                filter.fxHandles[channel.GetHandle()] = fxHandle;
+            }
         }
         else
         {
-            this->fxHandles[channel.GetHandle()] = fxHandle;
+            Logger::LogToFile("[sv:err:effect:apply] : failed to create "
+                "effect (code:%d)", BASS_ErrorGetCode());
         }
     }
-    else
+}
+
+void Effect::AppendFilter(const DWORD type, const int priority, const void* const paramPtr, const DWORD paramSize)
+{
+    Filter filter;
+    filter.type = type;
+    filter.priority = priority;
+    filter.params.resize(paramSize);
+    if (paramSize > 0)
+        std::memcpy(filter.params.data(), paramPtr, paramSize);
+    this->filters.push_back(std::move(filter));
+}
+
+void Effect::RemoveFilter(const DWORD type, const int priority)
+{
+    for (auto it = this->filters.begin(); it != this->filters.end(); ++it)
     {
-        Logger::LogToFile("[sv:err:effect:apply] : failed to create "
-            "effect (code:%d)", BASS_ErrorGetCode());
+        if (it->type == type && it->priority == priority)
+        {
+            for (const auto& fxHandle : it->fxHandles)
+            {
+                BASS_ChannelRemoveFX(fxHandle.first, fxHandle.second);
+            }
+            this->filters.erase(it);
+            return;
+        }
     }
 }

@@ -11,6 +11,7 @@
 #include "PointStream.h"
 
 #include <cassert>
+#include <shared_mutex>
 
 #include "sdk.hpp"
 
@@ -22,7 +23,7 @@ PointStream::PointStream(const float distance, const Vector3& position) : LocalS
 {
 	PackWrap(this->packetStreamUpdatePosition, SV::ControlPacketType::updateLPStreamPosition, sizeof(SV::UpdateLPStreamPositionPacket));
 
-	PackGetStruct(&*this->packetStreamUpdatePosition, SV::UpdateLPStreamPositionPacket)->stream = reinterpret_cast<uint32_t>(static_cast<Stream*>(this));
+	PackGetStruct(&*this->packetStreamUpdatePosition, SV::UpdateLPStreamPositionPacket)->stream = this->streamId;
 	PackGetStruct(&*this->packetStreamUpdatePosition, SV::UpdateLPStreamPositionPacket)->position = position;
 }
 
@@ -33,10 +34,18 @@ void PointStream::UpdatePosition(const Vector3& position)
 
 	PackGetStruct(&*this->packetStreamUpdatePosition, SV::UpdateLPStreamPositionPacket)->position = position;
 
-	IPlayerPool* playerPool = SampVoiceComponent::GetPlayers();
-	for (IPlayer* player : playerPool->entries())
+	std::shared_lock lock(listenerMutex_);
+	for (const uint16_t listenerId : listenerIds_)
 	{
-		if (this->HasListener(player->getID()) && PlayerStore::IsPlayerConnected(player->getID()))
-			NetHandler::SendControlPacket(player->getID(), *&*this->packetStreamUpdatePosition);
+		if (PlayerStore::IsPlayerConnected(listenerId))
+		{
+			const auto pListenerInfo = PlayerStore::RequestPlayerWithSharedAccess(listenerId);
+			const bool canReceive = pListenerInfo != nullptr &&
+				pListenerInfo->listenerEnabled.load(std::memory_order_relaxed);
+			PlayerStore::ReleasePlayerWithSharedAccess(listenerId);
+
+			if (canReceive)
+				NetHandler::SendControlPacket(listenerId, *&*this->packetStreamUpdatePosition);
+		}
 	}
 }

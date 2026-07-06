@@ -7,7 +7,7 @@ English | [Русский](https://github.com/AmyrAhmady/sampvoice/blob/master/R
 
 #### Version support
 ----------------------------------
-* Client: SA:MP 0.3.7 (R1, R3)
+* Client: SA:MP 0.3.7 (R1, R3-1, R5-1, DL-1)
 * Server: Latest open.mp version
 
 ## Features
@@ -157,9 +157,71 @@ public OnGameModeExit()
 }
 ```
 
+#### Channel Bitmask Routing
+---------------------------------
+The plugin supports **32 independent audio channels** (bits 0–31) for fine-grained voice routing control. This adds an extra dimension beyond streams: a key press, a speaker attachment, and a stream each carry a channel mask, and voice is forwarded only if all three overlap.
+
+**Key concepts:**
+
+| Term | Meaning |
+|------|---------|
+| `channelmask` | A `uint32_t` bitmask. Bit 0 = channel 0 (`0x01`), bit 1 = channel 1 (`0x02`), … bit 31 = channel 31 (`0x80000000`) |
+| `SvSetKeyWithChannels(player, key, mask)` | When the player presses `key`, the channels in `mask` become **active** |
+| `SvAttachSpeakerToStreamWithChannels(stream, player, mask)` | Only voice on channels from `mask` will pass into `stream` |
+| `SvEnableSpeaker(player, mask)` / `SvDisableSpeaker(player, mask)` | Pawn‑side gate — restricts which channels the player is allowed to use (default: all). `SvCheckSpeaker(player, mask)` queries it |
+| **Forward rule** | `(activeCh & enabledCh & chMask) != 0` — all three masks must intersect |
+
+**Example — 3‑channel setup:**
+
+```pawn
+#define CH_GLOBAL   0b0001  // channel 0
+#define CH_TEAM     0b0010  // channel 1
+#define CH_SQUAD    0b0100  // channel 2
+
+new gStream = SvCreateStream(0.0);           // global music
+new tStream = SvCreateStream(30.0);          // team radio
+new sStream = SvCreateStream(10.0);          // squad radio
+
+SvSetKeyWithChannels(playerid, 0x42, CH_GLOBAL | CH_TEAM);  // B → global + team
+SvSetKeyWithChannels(playerid, 0x5A, CH_SQUAD);             // Z → squad only
+
+SvAttachSpeakerToStreamWithChannels(gStream, playerid, CH_GLOBAL);
+SvAttachSpeakerToStreamWithChannels(tStream, playerid, CH_TEAM);
+SvAttachSpeakerToStreamWithChannels(sStream, playerid, CH_SQUAD);
+
+SvEnableSpeaker(playerid, CH_GLOBAL | CH_TEAM);  // deny squad for this player
+// Now Z (CH_SQUAD) has no effect — squad channel is disabled by Pawn
+```
+
+> **Note:** `SvAttachSpeakerToStream` (without `WithChannels`) defaults to mask `0xFFFFFFFF` — no channel restriction. `SvAddKey` (without `WithChannels`) also defaults to `0xFFFFFFFF`. Existing scripts that don't use channels work unchanged.
+
+## Configuration
+---------------------------------
+The plugin can be configured via open.mp's `config.json`:
+
+```json
+{
+    "sampvoice": {
+        "port": 2020,
+        "threads": 4,
+        "updaterate": 200
+    }
+}
+```
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `sampvoice.port` | Random | UDP port for voice traffic. Set this if you need to open a firewall rule |
+| `sampvoice.threads` | 8 | Number of worker threads for voice processing. Typically set to CPU cores minus 1 |
+| `sampvoice.updaterate` | 200 | Player position check interval in milliseconds. Lower = more responsive but higher CPU |
+
 ## Compiling
 ---------------------------------
-Plugin compiles for *Win32* and *Linux x86* platforms.
+Plugin compiles for *Win32/x64* and *Linux x86/x86_64* platforms.
+
+The server plugin can be built as **32-bit** or **64-bit**. The client plugin (SA:MP `.asi`) is **32-bit only**.
+
+> **Note:** PAWN cell size is always **32-bit** regardless of plugin architecture.
 
 Below are further instructions:
 
@@ -170,24 +232,57 @@ git submodule update --init --recursive
 cd sampvoice
 ```
 
-### Windows (Client/Server)
+### Windows (Server)
 ---------------------------------
-Run cmake against root directory. Example of how it works:
+#### 32-bit server
 ```sh
-mkdir build
-cd build
+mkdir build32
+cd build32
 cmake .. -A Win32
+cmake --build .
 ```
-Then open solution file (.sln) in your `build` folder.  
 
-To compile the client side of the plugin, you need the *DirectX SDK*. By default, the client part is compiled for version **SA:MP 0.3.7 (R1)**, but you can also explicitly tell the compiler the version for the build using the **SAMP_R1** and **SAMP_R3** macros.
+#### 64-bit server
+```sh
+mkdir build64
+cd build64
+cmake .. -A x64
+cmake --build .
+```
+
+### Windows (Client)
+--------------------------------
+The client plugin (`.asi` for SA:MP) can only be built as **32-bit**.
+
+Four SA:MP versions (R1, R3-1, R5-1, DL-1) are built simultaneously:
+
+```sh
+mkdir build_client
+cd build_client
+cmake .. -DBUILD_CLIENT=ON -A Win32
+cmake --build . --target sampvoice-client
+```
+
+Outputs: `sampvoice_r1.asi`, `sampvoice_r3.asi`, `sampvoice_r5.asi`, `sampvoice_dl.asi`
+
+> **Note:** For packaging the runtime files (BASS DLLs, language files, resources) alongside the `.asi`, refer to the CI workflow in `.github/workflows/build.yml`.
+
+> **Note:** The client requires `d3dx9.h` headers. If you have the DirectX SDK installed, set `DXSDK_DIR`. Otherwise, the build will find them via NuGet (`Microsoft.DXSDK.D3DX`) or use the local headers in `client/include/dxsdk/`. No separate DXSDK installation is required.
 
 ### Linux (Server)
 ---------------------------------
-Run cmake against root directory. Example of how it works:
+#### 32-bit build
 ```sh
-mkdir build
-cd build
+mkdir build32
+cd build32
 cmake .. -DCMAKE_C_FLAGS=-m32 -DCMAKE_CXX_FLAGS=-m32 -DCMAKE_BUILD_TYPE=Release
+cmake --build . --config Release
+```
+
+#### 64-bit build
+```sh
+mkdir build64
+cd build64
+cmake .. -DCMAKE_BUILD_TYPE=Release
 cmake --build . --config Release
 ```

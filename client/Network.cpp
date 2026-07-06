@@ -17,7 +17,7 @@
 
 #pragma comment(lib, "Ws2_32.lib")
 
-bool Network::Init(const AddressesBase& addrBase) noexcept
+bool Network::Init() noexcept
 {
     if (Network::initStatus)
         return false;
@@ -53,7 +53,7 @@ bool Network::Init(const AddressesBase& addrBase) noexcept
         return false;
     }
 
-    if (!RakNet::Init(addrBase))
+    if (!RakNet::Init())
     {
         Logger::LogToFile("[sv:err:network:init] : failed to init raknet");
         return false;
@@ -130,7 +130,7 @@ bool Network::SendControlPacket(const WORD packet, const LPCVOID dataAddr, const
     if (Network::connectionStatus != ConnectionStatus::Connected)
         return false;
 
-    BitStream bitStream { sizeof(BYTE) + sizeof(ControlPacket) + dataSize };
+    BitStream bitStream { static_cast<int>(sizeof(BYTE) + sizeof(ControlPacket) + dataSize) };
 
     bitStream.Write<BYTE>(kRaknetPacketId);
 
