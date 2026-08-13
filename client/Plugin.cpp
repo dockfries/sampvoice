@@ -214,8 +214,6 @@ void Plugin::MainLoop()
     {
         if (keyEvent.isPressed)
         {
-            Logger::LogToFile("[sv:dbg:plugin] : activation key(%hhx) pressed", keyEvent.keyId);
-
             if (!Record::GetMicroEnable()) continue;
 
             if (!Plugin::recordBusy && !Plugin::recordStatus && keyEvent.activeKeys == 1)
@@ -243,8 +241,6 @@ void Plugin::MainLoop()
         }
         else
         {
-            Logger::LogToFile("[sv:dbg:plugin] : activation key(%hhx) released", keyEvent.keyId);
-
             if (!Record::GetMicroEnable()) continue;
 
             if (!Plugin::recordBusy && Plugin::recordStatus && !keyEvent.activeKeys)

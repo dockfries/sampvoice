@@ -18,6 +18,17 @@
 
 #include "PluginConfig.h"
 
+namespace
+{
+    void DiscardRecordedData(const HRECORD channel) noexcept
+    {
+        const auto bufferSize = BASS_ChannelGetData(channel, nullptr, BASS_DATA_AVAILABLE);
+
+        if (bufferSize != static_cast<DWORD>(-1) && bufferSize != 0)
+            BASS_ChannelGetData(channel, nullptr, bufferSize);
+    }
+}
+
 bool Record::Init(const DWORD bitrate) noexcept
 {
     if (Record::initStatus)
@@ -49,7 +60,8 @@ bool Record::Init(const DWORD bitrate) noexcept
             {
                 try
                 {
-                    // Convert device name from system encoding (GBK on Chinese Windows) to UTF-8
+                    // Convert device name from the system ANSI code page
+                    // (e.g. GBK on Chinese Windows) to UTF-8
                     std::string utf8Name;
                     {
                         const int wideLen = MultiByteToWideChar(CP_ACP, 0, devInfo.name, -1, nullptr, 0);
@@ -224,8 +236,9 @@ bool Record::Init(const DWORD bitrate) noexcept
         PluginConfig::SetDeviceName(Record::deviceNamesList[Record::usedDeviceIndex]);
     }
 
+    const auto recordFlags = PluginConfig::GetMicroEnable() ? 0 : BASS_RECORD_PAUSE;
     Record::recordChannel = BASS_RecordStart(SV::kFrequency, 1,
-        BASS_RECORD_PAUSE, nullptr, nullptr);
+        recordFlags, nullptr, nullptr);
 
     if (Record::recordChannel == NULL)
     {
@@ -294,7 +307,10 @@ void Record::Free() noexcept
 
 void Record::Tick() noexcept
 {
-    if (Record::initStatus && Record::checkStatus)
+    if (!Record::initStatus)
+        return;
+
+    if (Record::checkStatus)
     {
         if (const auto bufferSize = BASS_ChannelGetData(Record::recordChannel,
             nullptr, BASS_DATA_AVAILABLE); bufferSize != -1 && bufferSize != 0)
@@ -305,6 +321,10 @@ void Record::Tick() noexcept
                 BASS_StreamPutData(Record::checkChannel, Record::encBuffer.data(), readDataSize);
             }
         }
+    }
+    else if (!Record::recordStatus)
+    {
+        DiscardRecordedData(Record::recordChannel);
     }
 }
 
@@ -349,9 +369,12 @@ bool Record::StartRecording() noexcept
     if (!PluginConfig::GetMicroEnable())
         return false;
 
-    Logger::LogToFile("[sv:dbg:record:startrecording] : channel recording starting...");
+    if (BASS_ChannelIsActive(Record::recordChannel) != BASS_ACTIVE_PLAYING &&
+        BASS_ChannelPlay(Record::recordChannel, FALSE) == FALSE)
+    {
+        return false;
+    }
 
-    BASS_ChannelPlay(Record::recordChannel, FALSE);
     Record::recordStatus = true;
 
     return true;
@@ -372,15 +395,8 @@ void Record::StopRecording() noexcept
     if (Record::checkStatus)
         return;
 
-    BASS_ChannelPause(Record::recordChannel);
     opus_encoder_ctl(Record::encoder, OPUS_RESET_STATE);
-
-    Logger::LogToFile("[sv:dbg:record:stoprecording] : channel recording stoped");
-
-    const auto bufferSize = BASS_ChannelGetData(Record::recordChannel, nullptr, BASS_DATA_AVAILABLE);
-    if (bufferSize == -1 && bufferSize == 0) return;
-
-    BASS_ChannelGetData(Record::recordChannel, nullptr, bufferSize);
+    DiscardRecordedData(Record::recordChannel);
 }
 
 bool Record::StartChecking() noexcept
@@ -440,10 +456,16 @@ void Record::SetMicroEnable(const bool microEnable) noexcept
 
     PluginConfig::SetMicroEnable(microEnable);
 
-    if (!PluginConfig::GetMicroEnable())
+    if (PluginConfig::GetMicroEnable())
+    {
+        if (BASS_ChannelIsActive(Record::recordChannel) != BASS_ACTIVE_PLAYING)
+            BASS_ChannelPlay(Record::recordChannel, FALSE);
+    }
+    else
     {
         Record::StopRecording();
         Record::StopChecking();
+        BASS_ChannelPause(Record::recordChannel);
     }
 }
 
@@ -481,8 +503,8 @@ void Record::SetMicroDevice(const int deviceIndex) noexcept
         BASS_RecordInit(Record::deviceNumbersList[Record::usedDeviceIndex = oldDevIndex]) == FALSE)
         return;
 
-    Record::recordChannel = BASS_RecordStart(SV::kFrequency, 1, !Record::recordStatus &&
-        !Record::checkStatus ? BASS_RECORD_PAUSE : NULL, nullptr, nullptr);
+    Record::recordChannel = BASS_RecordStart(SV::kFrequency, 1,
+        PluginConfig::GetMicroEnable() ? 0 : BASS_RECORD_PAUSE, nullptr, nullptr);
 
     PluginConfig::SetDeviceName(Record::deviceNamesList[Record::usedDeviceIndex]);
 }
