@@ -82,6 +82,7 @@ foreach(i RANGE ${NUM_VER})
         bass_fx.lib
         bass.lib
         opus.lib
+        dxguid.lib
     )
 
     set_target_properties(sampvoice_${ver_suffix} PROPERTIES
@@ -96,9 +97,11 @@ foreach(i RANGE ${NUM_VER})
         set_target_properties(sampvoice_${ver_suffix} PROPERTIES
             LINK_FLAGS "/SAFESEH:NO"
         )
+        # gauss.hlsl is embedded as a raw resource (IDR_HLSL1) and compiled at
+        # runtime via D3DXCreateEffectFromResource; it must not be passed to fxc.
         set_source_files_properties(
             "${CMAKE_CURRENT_SOURCE_DIR}/resources/gauss.hlsl"
-            PROPERTIES VS_SHADER_FLAGS "/fx\"_2_0\""
+            PROPERTIES HEADER_FILE_ONLY TRUE
         )
     endif()
 endforeach()
