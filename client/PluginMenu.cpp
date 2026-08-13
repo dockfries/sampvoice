@@ -133,6 +133,9 @@ bool PluginMenu::Init(IDirect3DDevice9* const pDevice,
 
     ImGui::GetIO().Fonts->AddFontDefault();
 
+    ImFontConfig fontConfig;
+    fontConfig.FontDataOwnedByAtlas = false;
+
     {
         float varTitleFontSize { 0.f };
 
@@ -143,7 +146,7 @@ bool PluginMenu::Init(IDirect3DDevice9* const pDevice,
         }
 
         PluginMenu::pTitleFont = ImGui::GetIO().Fonts->AddFontFromMemoryTTF(rFont.GetDataPtr(),
-            rFont.GetDataSize(), varTitleFontSize, NULL, ImGui::GetIO().Fonts->GetGlyphRangesCyrillic());
+            rFont.GetDataSize(), varTitleFontSize, &fontConfig, ImGui::GetIO().Fonts->GetGlyphRangesCyrillic());
 
         if (PluginMenu::pTitleFont == nullptr)
         {
@@ -152,7 +155,7 @@ bool PluginMenu::Init(IDirect3DDevice9* const pDevice,
         }
     }
 
-    Memory::ScopeExit titleFontResetScope { [] { delete PluginMenu::pTitleFont; } };
+    Memory::ScopeExit titleFontResetScope { [] { PluginMenu::pTitleFont = nullptr; } };
 
     {
         float varTabFontSize { 0.f };
@@ -164,7 +167,7 @@ bool PluginMenu::Init(IDirect3DDevice9* const pDevice,
         }
 
         PluginMenu::pTabFont = ImGui::GetIO().Fonts->AddFontFromMemoryTTF(rFont.GetDataPtr(),
-            rFont.GetDataSize(), varTabFontSize, NULL, ImGui::GetIO().Fonts->GetGlyphRangesCyrillic());
+            rFont.GetDataSize(), varTabFontSize, &fontConfig, ImGui::GetIO().Fonts->GetGlyphRangesCyrillic());
 
         if (PluginMenu::pTabFont == nullptr)
         {
@@ -173,7 +176,7 @@ bool PluginMenu::Init(IDirect3DDevice9* const pDevice,
         }
     }
 
-    Memory::ScopeExit tabFontResetScope { [] { delete PluginMenu::pTabFont; } };
+    Memory::ScopeExit tabFontResetScope { [] { PluginMenu::pTabFont = nullptr; } };
 
     {
         float varDescFontSize { 0.f };
@@ -185,7 +188,7 @@ bool PluginMenu::Init(IDirect3DDevice9* const pDevice,
         }
 
         PluginMenu::pDescFont = ImGui::GetIO().Fonts->AddFontFromMemoryTTF(rFont.GetDataPtr(),
-            rFont.GetDataSize(), varDescFontSize, NULL, ImGui::GetIO().Fonts->GetGlyphRangesCyrillic());
+            rFont.GetDataSize(), varDescFontSize, &fontConfig, ImGui::GetIO().Fonts->GetGlyphRangesCyrillic());
 
         if (PluginMenu::pDescFont == nullptr)
         {
@@ -194,7 +197,7 @@ bool PluginMenu::Init(IDirect3DDevice9* const pDevice,
         }
     }
 
-    Memory::ScopeExit descFontResetScope { [] { delete PluginMenu::pDescFont; } };
+    Memory::ScopeExit descFontResetScope { [] { PluginMenu::pDescFont = nullptr; } };
 
     {
         float varFontSize { 0.f };
@@ -206,7 +209,7 @@ bool PluginMenu::Init(IDirect3DDevice9* const pDevice,
         }
 
         PluginMenu::pDefFont = ImGui::GetIO().Fonts->AddFontFromMemoryTTF(rFont.GetDataPtr(),
-            rFont.GetDataSize(), varFontSize, NULL, ImGui::GetIO().Fonts->GetGlyphRangesCyrillic());
+            rFont.GetDataSize(), varFontSize, &fontConfig, ImGui::GetIO().Fonts->GetGlyphRangesCyrillic());
 
         if (PluginMenu::pDefFont == nullptr)
         {
@@ -241,10 +244,10 @@ void PluginMenu::Free() noexcept
     PluginMenu::tLogo.reset();
     PluginMenu::blurEffect.reset();
 
-    delete PluginMenu::pTitleFont;
-    delete PluginMenu::pTabFont;
-    delete PluginMenu::pDescFont;
-    delete PluginMenu::pDefFont;
+    PluginMenu::pTitleFont = nullptr;
+    PluginMenu::pTabFont = nullptr;
+    PluginMenu::pDescFont = nullptr;
+    PluginMenu::pDefFont = nullptr;
 
     PluginMenu::openChatFuncPatch.reset();
     PluginMenu::openScoreboardFuncPatch.reset();

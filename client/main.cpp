@@ -11,30 +11,17 @@
 
 #include "Plugin.h"
 
-#include <string>
 #include <sstream>
+#include <string>
 
-static std::string libraryName { "samp.dll" };
-
-static DWORD WINAPI LibraryWaitingThread(LPVOID)
+static DWORD WINAPI PluginInitializationThread(const LPVOID parameter)
 {
-    HMODULE sampBaseAddress { nullptr };
+    const auto pluginModule = static_cast<HMODULE>(parameter);
 
-    while ((sampBaseAddress = GetModuleHandle(libraryName.c_str())) == nullptr)
-        SleepForMilliseconds(50);
-
-    Plugin::OnSampLoad(sampBaseAddress);
-
-    return NULL;
-}
-
-BOOL APIENTRY DllMain(HMODULE hModule, DWORD dwReasonForCall, LPVOID)
-{
-    if (dwReasonForCall != DLL_PROCESS_ATTACH)
-        return TRUE;
-
-    if (!Plugin::OnPluginLoad(hModule))
+    if (!Plugin::OnPluginLoad(pluginModule))
         return FALSE;
+
+    std::string libraryName { "samp.dll" };
 
     if (const auto cmdLine = GetCommandLine(); cmdLine != nullptr)
     {
@@ -45,8 +32,29 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD dwReasonForCall, LPVOID)
         if (cmdStream >> iString) libraryName = std::move(iString);
     }
 
-    const auto waitingThread = CreateThread(NULL, 0,
-        LibraryWaitingThread, NULL, NULL, NULL);
+    HMODULE sampBaseAddress { nullptr };
 
-    return waitingThread != nullptr ? TRUE : FALSE;
+    while ((sampBaseAddress = GetModuleHandle(libraryName.c_str())) == nullptr)
+        SleepForMilliseconds(50);
+
+    Plugin::OnSampLoad(sampBaseAddress);
+
+    return 0;
+}
+
+BOOL APIENTRY DllMain(HMODULE hModule, DWORD dwReasonForCall, LPVOID)
+{
+    if (dwReasonForCall != DLL_PROCESS_ATTACH)
+        return TRUE;
+
+    DisableThreadLibraryCalls(hModule);
+
+    const auto initializationThread = CreateThread(NULL, 0,
+        PluginInitializationThread, hModule, NULL, NULL);
+
+    if (initializationThread == nullptr)
+        return FALSE;
+
+    CloseHandle(initializationThread);
+    return TRUE;
 }

@@ -13,6 +13,8 @@
 
 #include <cassert>
 
+#include <CommCtrl.h>
+
 #include <game/CRadar.h>
 #include <game/CWorld.h>
 #include <game/CSprite.h>
@@ -38,6 +40,8 @@
 #include "StreamAtPlayer.h"
 #include "StreamAtObject.h"
 #include "Header.h"
+
+#pragma comment(lib, "comctl32.lib")
 
 #define FontResource IDR_FONT1, RT_FONT
 #define LogoIconResource IDB_PNG1, "PNG"
@@ -75,6 +79,16 @@ bool Plugin::OnPluginLoad(const HMODULE hModule) noexcept
 
 bool Plugin::OnSampLoad(const HMODULE hModule) noexcept
 {
+#if defined(SAMP_R3)
+    Logger::LogToFile("[sv:dbg:samp:version] : client compiled for SA-MP 0.3.7-R3");
+#elif defined(SAMP_R5)
+    Logger::LogToFile("[sv:dbg:samp:version] : client compiled for SA-MP 0.3.7-R5");
+#elif defined(SAMP_DL)
+    Logger::LogToFile("[sv:dbg:samp:version] : client compiled for SA-MP 0.3.DL");
+#else
+    Logger::LogToFile("[sv:dbg:samp:version] : client compiled for SA-MP 0.3.7-R1");
+#endif
+
     Plugin::sampBaseAddr = reinterpret_cast<DWORD>(hModule);
 
     if (!PluginConfig::Load(Path() / SV::kConfigFileName))
@@ -608,8 +622,8 @@ void Plugin::DisconnectHandler()
     Record::Free();
 }
 
-LRESULT CALLBACK Plugin::WindowProc(const HWND hWnd,
-    const UINT uMsg, const WPARAM wParam, const LPARAM lParam)
+LRESULT CALLBACK Plugin::WindowProc(const HWND hWnd, const UINT uMsg,
+    const WPARAM wParam, const LPARAM lParam, const UINT_PTR, const DWORD_PTR)
 {
     if (PluginMenu::WindowProc(hWnd, uMsg, wParam, lParam))
         return TRUE;
@@ -620,8 +634,7 @@ LRESULT CALLBACK Plugin::WindowProc(const HWND hWnd,
         case WM_KEYUP: KeyFilter::PushReleaseEvent(static_cast<BYTE>(wParam)); break;
     }
 
-    return CallWindowProc(reinterpret_cast<WNDPROC>
-        (Plugin::origWndProc), hWnd, uMsg, wParam, lParam);
+    return DefSubclassProc(hWnd, uMsg, wParam, lParam);
 }
 
 void Plugin::OnDeviceInit(IDirect3D9* const pDirect,
@@ -631,36 +644,69 @@ void Plugin::OnDeviceInit(IDirect3D9* const pDirect,
     assert(pDirect);
     assert(pDevice);
 
-    MicroIcon::Init(pDevice,
+    Logger::LogToFile("[sv:dbg:render:plugin] : graphics initialization started "
+        "(direct:%p device:%p hwnd:%p)", pDirect, pDevice, dParameters.hDeviceWindow);
+
+    const auto microIconStatus = MicroIcon::Init(pDevice,
         Resource(Plugin::pModuleHandle, PassiveMicroIconResource),
         Resource(Plugin::pModuleHandle, ActiveMicroIconResource),
         Resource(Plugin::pModuleHandle, MutedMicroIconResource));
+    Logger::LogToFile("[sv:dbg:render:plugin] : MicroIcon initialization %s",
+        microIconStatus ? "succeeded" : "failed");
 
-    ImGuiUtil::Init(pDevice);
+    const auto imguiStatus = ImGuiUtil::Init(pDevice);
+    Logger::LogToFile("[sv:dbg:render:plugin] : ImGui initialization %s",
+        imguiStatus ? "succeeded" : "failed");
 
-    SpeakerList::Init(pDevice,
-        Resource(Plugin::pModuleHandle, SpeakerIconResource),
-        Resource(Plugin::pModuleHandle, FontResource));
+    if (imguiStatus)
+    {
+        const auto speakerListStatus = SpeakerList::Init(pDevice,
+            Resource(Plugin::pModuleHandle, SpeakerIconResource),
+            Resource(Plugin::pModuleHandle, FontResource));
+        Logger::LogToFile("[sv:dbg:render:plugin] : SpeakerList initialization %s",
+            speakerListStatus ? "succeeded" : "failed");
 
-    PluginMenu::Init(pDevice,
-        Resource(Plugin::pModuleHandle, BlurShaderResource),
-        Resource(Plugin::pModuleHandle, LogoIconResource),
-        Resource(Plugin::pModuleHandle, FontResource));
+        const auto pluginMenuStatus = PluginMenu::Init(pDevice,
+            Resource(Plugin::pModuleHandle, BlurShaderResource),
+            Resource(Plugin::pModuleHandle, LogoIconResource),
+            Resource(Plugin::pModuleHandle, FontResource));
+        Logger::LogToFile("[sv:dbg:render:plugin] : PluginMenu initialization %s",
+            pluginMenuStatus ? "succeeded" : "failed");
+    }
+    else
+    {
+        Logger::LogToFile("[sv:err:render:plugin] : address-dependent UI initialization skipped "
+            "(imgui:%d)", imguiStatus);
+    }
 
     Plugin::origWndHandle = dParameters.hDeviceWindow;
-    Plugin::origWndProc = GetWindowLong(Plugin::origWndHandle, GWL_WNDPROC);
-    SetWindowLong(Plugin::origWndHandle, GWL_WNDPROC,
-        reinterpret_cast<LONG>(&Plugin::WindowProc));
+    Plugin::windowSubclassStatus = Plugin::origWndHandle != nullptr &&
+        SetWindowSubclass(Plugin::origWndHandle, Plugin::WindowProc,
+            reinterpret_cast<UINT_PTR>(Plugin::pModuleHandle), 0) != FALSE;
+    Logger::LogToFile("[sv:dbg:render:plugin] : window subclass installation %s",
+        Plugin::windowSubclassStatus ? "succeeded" : "failed");
 
     Plugin::gameStatus = GameUtil::IsGameActive();
+    Logger::LogToFile("[sv:dbg:render:plugin] : graphics initialization completed");
 }
 
 void Plugin::OnBeforeReset()
 {
+    Logger::LogToFile("[sv:dbg:render:plugin] : device reset cleanup started");
+
     PluginMenu::Free();
+    Logger::LogToFile("[sv:dbg:render:plugin] : PluginMenu reset cleanup completed");
+
     SpeakerList::Free();
+    Logger::LogToFile("[sv:dbg:render:plugin] : SpeakerList reset cleanup completed");
+
     ImGuiUtil::Free();
+    Logger::LogToFile("[sv:dbg:render:plugin] : ImGui reset cleanup completed");
+
     MicroIcon::Free();
+    Logger::LogToFile("[sv:dbg:render:plugin] : MicroIcon reset cleanup completed");
+
+    Logger::LogToFile("[sv:dbg:render:plugin] : device reset cleanup completed");
 }
 
 void Plugin::OnRender()
@@ -677,33 +723,63 @@ void Plugin::OnAfterReset(IDirect3DDevice9* const pDevice,
 {
     assert(pDevice);
 
-    MicroIcon::Init(pDevice,
+    Logger::LogToFile("[sv:dbg:render:plugin] : post-reset initialization started (device:%p)", pDevice);
+
+    const auto microIconStatus = MicroIcon::Init(pDevice,
         Resource(Plugin::pModuleHandle, PassiveMicroIconResource),
         Resource(Plugin::pModuleHandle, ActiveMicroIconResource),
         Resource(Plugin::pModuleHandle, MutedMicroIconResource));
+    Logger::LogToFile("[sv:dbg:render:plugin] : post-reset MicroIcon initialization %s",
+        microIconStatus ? "succeeded" : "failed");
 
-    ImGuiUtil::Init(pDevice);
+    const auto imguiStatus = ImGuiUtil::Init(pDevice);
+    Logger::LogToFile("[sv:dbg:render:plugin] : post-reset ImGui initialization %s",
+        imguiStatus ? "succeeded" : "failed");
 
-    SpeakerList::Init(pDevice,
-        Resource(Plugin::pModuleHandle, SpeakerIconResource),
-        Resource(Plugin::pModuleHandle, FontResource));
+    if (imguiStatus)
+    {
+        const auto speakerListStatus = SpeakerList::Init(pDevice,
+            Resource(Plugin::pModuleHandle, SpeakerIconResource),
+            Resource(Plugin::pModuleHandle, FontResource));
+        Logger::LogToFile("[sv:dbg:render:plugin] : post-reset SpeakerList initialization %s",
+            speakerListStatus ? "succeeded" : "failed");
 
-    PluginMenu::Init(pDevice,
-        Resource(Plugin::pModuleHandle, BlurShaderResource),
-        Resource(Plugin::pModuleHandle, LogoIconResource),
-        Resource(Plugin::pModuleHandle, FontResource));
+        const auto pluginMenuStatus = PluginMenu::Init(pDevice,
+            Resource(Plugin::pModuleHandle, BlurShaderResource),
+            Resource(Plugin::pModuleHandle, LogoIconResource),
+            Resource(Plugin::pModuleHandle, FontResource));
+        Logger::LogToFile("[sv:dbg:render:plugin] : post-reset PluginMenu initialization %s",
+            pluginMenuStatus ? "succeeded" : "failed");
+    }
+    else
+    {
+        Logger::LogToFile("[sv:err:render:plugin] : post-reset address-dependent UI initialization skipped "
+            "(imgui:%d)", imguiStatus);
+    }
 
     Plugin::gameStatus = GameUtil::IsGameActive();
+    Logger::LogToFile("[sv:dbg:render:plugin] : post-reset initialization completed");
 }
 
 void Plugin::OnDeviceFree()
 {
-    SetWindowLong(Plugin::origWndHandle, GWL_WNDPROC, Plugin::origWndProc);
+    Logger::LogToFile("[sv:dbg:render:plugin] : device release cleanup started");
+
+    if (Plugin::windowSubclassStatus && Plugin::origWndHandle != nullptr)
+    {
+        RemoveWindowSubclass(Plugin::origWndHandle, Plugin::WindowProc,
+            reinterpret_cast<UINT_PTR>(Plugin::pModuleHandle));
+    }
+
+    Plugin::windowSubclassStatus = false;
+    Plugin::origWndHandle = nullptr;
 
     PluginMenu::Free();
     SpeakerList::Free();
     ImGuiUtil::Free();
     MicroIcon::Free();
+
+    Logger::LogToFile("[sv:dbg:render:plugin] : device release cleanup completed");
 }
 
 void Plugin::DrawRadarHook()
@@ -725,7 +801,7 @@ std::map<DWORD, StreamPtr> Plugin::streamTable;
 std::string Plugin::blacklistFilePath;
 bool Plugin::gameStatus { false };
 
-LONG Plugin::origWndProc { NULL };
 HWND Plugin::origWndHandle { NULL };
+bool Plugin::windowSubclassStatus { false };
 
 Memory::CallHookPtr Plugin::drawRadarHook { nullptr };

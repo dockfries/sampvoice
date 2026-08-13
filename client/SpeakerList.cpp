@@ -61,8 +61,11 @@ bool SpeakerList::Init(IDirect3DDevice9* const pDevice,
             return false;
         }
 
+        ImFontConfig fontConfig;
+        fontConfig.FontDataOwnedByAtlas = false;
+
         SpeakerList::pSpeakerFont = ImGui::GetIO().Fonts->AddFontFromMemoryTTF(rSpeakerFont.GetDataPtr(),
-            rSpeakerFont.GetDataSize(), varFontSize, nullptr, ImGui::GetIO().Fonts->GetGlyphRangesCyrillic());
+            rSpeakerFont.GetDataSize(), varFontSize, &fontConfig, ImGui::GetIO().Fonts->GetGlyphRangesCyrillic());
 
         if (SpeakerList::pSpeakerFont == nullptr)
         {
@@ -100,7 +103,7 @@ void SpeakerList::Free() noexcept
     SpeakerList::iconTextures.clear();
 
     SpeakerList::tSpeakerIcon.reset();
-    delete SpeakerList::pSpeakerFont;
+    SpeakerList::pSpeakerFont = nullptr;
 
     SpeakerList::initStatus = false;
 }

@@ -51,13 +51,32 @@ bool ImGuiUtil::Init(IDirect3DDevice9* const pDevice) noexcept
     }
 
     IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
+    if (ImGui::CreateContext() == nullptr)
+    {
+        Logger::LogToFile("[sv:err:imgui:init] : failed to create ImGui context");
+        return false;
+    }
 
     ImGui::GetIO().IniFilename = NULL;
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
     ImGuiUtil::win32loadStatus = ImGui_ImplWin32_Init(hDeviceWindow);
+    if (!ImGuiUtil::win32loadStatus)
+    {
+        Logger::LogToFile("[sv:err:imgui:init] : failed to initialize Win32 backend");
+        ImGui::DestroyContext();
+        return false;
+    }
+
     ImGuiUtil::dx9loadStatus = ImGui_ImplDX9_Init(pDevice);
+    if (!ImGuiUtil::dx9loadStatus)
+    {
+        Logger::LogToFile("[sv:err:imgui:init] : failed to initialize Direct3D9 backend");
+        ImGui_ImplWin32_Shutdown();
+        ImGuiUtil::win32loadStatus = false;
+        ImGui::DestroyContext();
+        return false;
+    }
 
     ImGuiUtil::renderStatus = false;
     ImGuiUtil::initStatus = true;

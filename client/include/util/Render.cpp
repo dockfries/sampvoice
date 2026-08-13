@@ -11,6 +11,8 @@
 
 #include "Render.h"
 
+#include <cstring>
+
 #include "Logger.h"
 
 #pragma comment(lib, "d3d9.lib")
@@ -21,7 +23,8 @@ namespace
     volatile auto& pGameDirect = *reinterpret_cast<IDirect3D9**>(0xC97C20);
     volatile auto& pGameDevice = *reinterpret_cast<IDirect3DDevice9**>(0xC97C28);
     volatile auto& pGameParameters = *reinterpret_cast<D3DPRESENT_PARAMETERS*>(0xC9C040);
-    const auto GameDirect3DCreate9 = reinterpret_cast<IDirect3D9*(CALLBACK*)(UINT)>(0x807C2B);
+    const auto GameDirect3DCreate9Call = reinterpret_cast<const void*>(0x7F630B);
+    constexpr BYTE GameDirect3DCreate9CallBytes[] { 0xE8, 0x1B, 0x19, 0x01, 0x00 };
 }
 
 bool Render::Init() noexcept
@@ -30,9 +33,19 @@ bool Render::Init() noexcept
 
     Logger::LogToFile("[dbg:render:init] : module initializing...");
 
+    if (std::memcmp(GameDirect3DCreate9Call, GameDirect3DCreate9CallBytes,
+        sizeof(GameDirect3DCreate9CallBytes)) != 0)
+    {
+        Logger::LogToFile("[err:render:init] : unsupported gta executable; "
+            "Direct3DCreate9 call site validation failed at 0x7F630B");
+        return false;
+    }
+
     try
     {
-        Render::hookDirect3DCreate9 = MakeJumpHook(GameDirect3DCreate9, Render::HookDirect3DCreate9);
+        Render::hookDirect3DCreate9 = MakeCallHook(GameDirect3DCreate9Call,
+            Render::HookDirect3DCreate9, false);
+        Render::hookDirect3DCreate9->Enable();
     }
     catch (const std::exception& exception)
     {
@@ -359,7 +372,6 @@ void Render::RemoveDeviceFreeCallback(const std::size_t callback) noexcept
 Render::IDirect3DDevice9Hook::IDirect3DDevice9Hook(IDirect3DDevice9* const pOrigInterface) noexcept
     : pOrigInterface(pOrigInterface)
 {
-    this->pOrigInterface->AddRef();
 }
 
 Render::IDirect3DDevice9Hook::~IDirect3DDevice9Hook() noexcept
@@ -370,6 +382,15 @@ Render::IDirect3DDevice9Hook::~IDirect3DDevice9Hook() noexcept
 HRESULT __stdcall Render::IDirect3DDevice9Hook::Present(CONST RECT* const pSourceRect, CONST RECT* const pDestRect,
     const HWND hDestWindowOverride, CONST RGNDATA* const pDirtyRegion) noexcept
 {
+    const auto firstPresent = !this->firstPresentLogged;
+
+    if (firstPresent)
+    {
+        Logger::LogToFile("[dbg:render:device] : first Present entered (native:%p)",
+            this->pOrigInterface);
+        this->firstPresentLogged = true;
+    }
+
     if (this->pOrigInterface == Render::pDeviceInterface && !this->resetStatus)
     {
         for (const auto& renderCallback : Render::renderCallbacks)
@@ -378,30 +399,44 @@ HRESULT __stdcall Render::IDirect3DDevice9Hook::Present(CONST RECT* const pSourc
         }
     }
 
-    return this->pOrigInterface->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
-}
+    if (firstPresent)
+        Logger::LogToFile("[dbg:render:device] : first Present callbacks completed");
 
-HRESULT __stdcall Render::IDirect3DDevice9Hook::QueryInterface(REFIID riid, VOID** const ppvObj) noexcept
-{
-    *ppvObj = nullptr;
+    const auto hResult = this->pOrigInterface->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
 
-    const auto hResult = this->pOrigInterface->QueryInterface(riid, ppvObj);
-
-    if (SUCCEEDED(hResult)) *ppvObj = this;
+    if (firstPresent)
+        Logger::LogToFile("[dbg:render:device] : first native Present returned (code:%ld)", hResult);
 
     return hResult;
 }
 
+HRESULT __stdcall Render::IDirect3DDevice9Hook::QueryInterface(REFIID riid, VOID** const ppvObj) noexcept
+{
+    if (ppvObj == nullptr)
+        return E_POINTER;
+
+    *ppvObj = nullptr;
+
+    if (riid == IID_IUnknown || riid == IID_IDirect3DDevice9)
+    {
+        *ppvObj = static_cast<IDirect3DDevice9*>(this);
+        this->AddRef();
+        return S_OK;
+    }
+
+    return this->pOrigInterface->QueryInterface(riid, ppvObj);
+}
+
 ULONG __stdcall Render::IDirect3DDevice9Hook::AddRef() noexcept
 {
-    return this->pOrigInterface->AddRef();
+    return ++this->referenceCount;
 }
 
 ULONG __stdcall Render::IDirect3DDevice9Hook::Release() noexcept
 {
-    const auto count = this->pOrigInterface->Release();
+    const auto count = --this->referenceCount;
 
-    if (count <= 1)
+    if (count == 0)
     {
         if (this->pOrigInterface == Render::pDeviceInterface)
         {
@@ -1123,7 +1158,6 @@ HRESULT __stdcall Render::IDirect3DDevice9Hook::CreateQuery(const D3DQUERYTYPE T
 Render::IDirect3D9Hook::IDirect3D9Hook(IDirect3D9* const pOrigInterface) noexcept
     : pOrigInterface(pOrigInterface)
 {
-    this->pOrigInterface->AddRef();
 }
 
 Render::IDirect3D9Hook::~IDirect3D9Hook() noexcept
@@ -1133,25 +1167,31 @@ Render::IDirect3D9Hook::~IDirect3D9Hook() noexcept
 
 HRESULT __stdcall Render::IDirect3D9Hook::QueryInterface(REFIID riid, VOID** const ppvObj) noexcept
 {
+    if (ppvObj == nullptr)
+        return E_POINTER;
+
     *ppvObj = nullptr;
 
-    const auto hResult = this->pOrigInterface->QueryInterface(riid, ppvObj);
+    if (riid == IID_IUnknown || riid == IID_IDirect3D9)
+    {
+        *ppvObj = static_cast<IDirect3D9*>(this);
+        this->AddRef();
+        return S_OK;
+    }
 
-    if (SUCCEEDED(hResult)) *ppvObj = this;
-
-    return hResult;
+    return this->pOrigInterface->QueryInterface(riid, ppvObj);
 }
 
 ULONG __stdcall Render::IDirect3D9Hook::AddRef() noexcept
 {
-    return this->pOrigInterface->AddRef();
+    return ++this->referenceCount;
 }
 
 ULONG __stdcall Render::IDirect3D9Hook::Release() noexcept
 {
-    const auto count = this->pOrigInterface->Release();
+    const auto count = --this->referenceCount;
 
-    if (count <= 1)
+    if (count == 0)
     {
         delete this;
         return 0;
@@ -1294,9 +1334,9 @@ HRESULT __stdcall Render::IDirect3D9Hook::CreateDevice(const UINT Adapter, const
 
 IDirect3D9* CALLBACK Render::HookDirect3DCreate9(const UINT SDKVersion) noexcept
 {
-    Render::hookDirect3DCreate9->Disable();
-    auto pOrigDirect = GameDirect3DCreate9(SDKVersion);
-    Render::hookDirect3DCreate9->Enable();
+    const auto direct3DCreate9 = reinterpret_cast<IDirect3D9*(CALLBACK*)(UINT)>(
+        Render::hookDirect3DCreate9->callFuncAddr);
+    auto pOrigDirect = direct3DCreate9(SDKVersion);
 
     if (pOrigDirect != nullptr)
     {
@@ -1330,4 +1370,4 @@ std::vector<Render::EndSceneCallback> Render::endSceneCallbacks;
 std::vector<Render::AfterResetCallback> Render::afterResetCallbacks;
 std::vector<Render::DeviceFreeCallback> Render::deviceFreeCallbacks;
 
-Memory::JumpHookPtr Render::hookDirect3DCreate9 { nullptr };
+Memory::CallHookPtr Render::hookDirect3DCreate9 { nullptr };

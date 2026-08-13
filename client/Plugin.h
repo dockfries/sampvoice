@@ -54,7 +54,8 @@ private:
     static void ControlPacketHandler(const ControlPacket& controlPacket);
     static void DisconnectHandler();
 
-    static LRESULT CALLBACK WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+    static LRESULT CALLBACK WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
+        UINT_PTR subclassId, DWORD_PTR referenceData);
 
     static void OnDeviceInit(IDirect3D9* pDirect, IDirect3DDevice9* pDevice, const D3DPRESENT_PARAMETERS& dParameters);
     static void OnBeforeReset();
@@ -77,8 +78,8 @@ private:
     static std::string blacklistFilePath;
     static bool gameStatus;
 
-    static LONG origWndProc;
     static HWND origWndHandle;
+    static bool windowSubclassStatus;
 
     static Memory::CallHookPtr drawRadarHook;
 

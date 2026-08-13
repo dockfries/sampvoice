@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <cstdint>
 #include <functional>
 #include <mutex>
@@ -216,9 +217,11 @@ private:
     private:
 
         IDirect3DDevice9* const pOrigInterface;
+        std::atomic<ULONG> referenceCount { 1 };
 
         bool resetStatus { false };
         bool sceneStatus { false };
+        bool firstPresentLogged { false };
 
     };
 
@@ -259,6 +262,7 @@ private:
     private:
 
         IDirect3D9* const pOrigInterface;
+        std::atomic<ULONG> referenceCount { 1 };
 
     };
 
@@ -283,6 +287,6 @@ private:
     static std::vector<AfterResetCallback> afterResetCallbacks;
     static std::vector<DeviceFreeCallback> deviceFreeCallbacks;
 
-    static Memory::JumpHookPtr hookDirect3DCreate9;
+    static Memory::CallHookPtr hookDirect3DCreate9;
 
 };
