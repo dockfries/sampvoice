@@ -14,6 +14,8 @@
 #include <Windows.h>
 #include <d3d9.h>
 
+#include <imgui/imgui.h>
+
 class ImGuiUtil {
 
     ImGuiUtil() = delete;
@@ -34,6 +36,9 @@ public:
     static void EndRender() noexcept;
 
 public:
+
+    // Glyph ranges for UI fonts: Latin + Cyrillic + simplified Chinese.
+    static const ImWchar* GetGlyphRanges() noexcept;
 
     static LRESULT WindowProc(HWND hWnd, UINT uMsg,
         WPARAM wParam, LPARAM lParam) noexcept;

@@ -146,7 +146,7 @@ bool PluginMenu::Init(IDirect3DDevice9* const pDevice,
         }
 
         PluginMenu::pTitleFont = ImGui::GetIO().Fonts->AddFontFromMemoryTTF(rFont.ptr,
-            static_cast<int>(rFont.size), varTitleFontSize, &fontConfig, ImGui::GetIO().Fonts->GetGlyphRangesCyrillic());
+            static_cast<int>(rFont.size), varTitleFontSize, &fontConfig, ImGuiUtil::GetGlyphRanges());
 
         if (PluginMenu::pTitleFont == nullptr)
         {
@@ -167,7 +167,7 @@ bool PluginMenu::Init(IDirect3DDevice9* const pDevice,
         }
 
         PluginMenu::pTabFont = ImGui::GetIO().Fonts->AddFontFromMemoryTTF(rFont.ptr,
-            static_cast<int>(rFont.size), varTabFontSize, &fontConfig, ImGui::GetIO().Fonts->GetGlyphRangesCyrillic());
+            static_cast<int>(rFont.size), varTabFontSize, &fontConfig, ImGuiUtil::GetGlyphRanges());
 
         if (PluginMenu::pTabFont == nullptr)
         {
@@ -188,7 +188,7 @@ bool PluginMenu::Init(IDirect3DDevice9* const pDevice,
         }
 
         PluginMenu::pDescFont = ImGui::GetIO().Fonts->AddFontFromMemoryTTF(rFont.ptr,
-            static_cast<int>(rFont.size), varDescFontSize, &fontConfig, ImGui::GetIO().Fonts->GetGlyphRangesCyrillic());
+            static_cast<int>(rFont.size), varDescFontSize, &fontConfig, ImGuiUtil::GetGlyphRanges());
 
         if (PluginMenu::pDescFont == nullptr)
         {
@@ -209,7 +209,7 @@ bool PluginMenu::Init(IDirect3DDevice9* const pDevice,
         }
 
         PluginMenu::pDefFont = ImGui::GetIO().Fonts->AddFontFromMemoryTTF(rFont.ptr,
-            static_cast<int>(rFont.size), varFontSize, &fontConfig, ImGui::GetIO().Fonts->GetGlyphRangesCyrillic());
+            static_cast<int>(rFont.size), varFontSize, &fontConfig, ImGuiUtil::GetGlyphRanges());
 
         if (PluginMenu::pDefFont == nullptr)
         {

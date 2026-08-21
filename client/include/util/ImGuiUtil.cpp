@@ -178,6 +178,21 @@ LRESULT ImGuiUtil::WindowProc(const HWND hWnd, const UINT uMsg,
     return ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam);
 }
 
+const ImWchar* ImGuiUtil::GetGlyphRanges() noexcept
+{
+    static const ImWchar* ranges = []() -> const ImWchar*
+    {
+        ImFontGlyphRangesBuilder builder;
+        builder.AddRanges(ImGui::GetIO().Fonts->GetGlyphRangesCyrillic());
+        builder.AddRanges(ImGui::GetIO().Fonts->GetGlyphRangesChineseSimplifiedCommon());
+        static ImVector<ImWchar> result;
+        builder.BuildRanges(&result);
+        return result.Data;
+    }();
+
+    return ranges;
+}
+
 bool ImGuiUtil::initStatus { false };
 bool ImGuiUtil::win32loadStatus { false };
 bool ImGuiUtil::dx9loadStatus { false };
