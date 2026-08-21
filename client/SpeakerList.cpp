@@ -270,8 +270,9 @@ void SpeakerList::Render()
                                 break;
                             }
                         }
-                        ImGui::Image(iconTex, { ImGui::GetTextLineHeight(),
-                            ImGui::GetTextLineHeight() }, { 0, 0 }, { 1, 1 }, color);
+                        ImGui::ImageWithBg(ImTextureRef((ImTextureID)(intptr_t)iconTex),
+                            { ImGui::GetTextLineHeight(),
+                            ImGui::GetTextLineHeight() }, { 0, 0 }, { 1, 1 }, ImVec4(0, 0, 0, 0), color);
                     }
 
                     ImGui::NextColumn();

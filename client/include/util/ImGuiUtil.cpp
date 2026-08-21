@@ -62,10 +62,6 @@ bool ImGuiUtil::Init(IDirect3DDevice9* const pDevice) noexcept
     ImGui::GetIO().IniFilename = NULL;
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
-    // The multi-language glyph set (full CJK + Hangul + extras) needs a wider
-    // atlas than the default 4096.
-    ImGui::GetIO().Fonts->TexDesiredWidth = 8192;
-
     ImGuiUtil::win32loadStatus = ImGui_ImplWin32_Init(hDeviceWindow);
     if (!ImGuiUtil::win32loadStatus)
     {

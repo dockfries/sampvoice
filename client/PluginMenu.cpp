@@ -372,7 +372,7 @@ void PluginMenu::Render() noexcept
         return;
 
     ImGui::SetNextWindowSize({ vWindowWidth, vWindowHeight });
-    ImGui::SetNextWindowPosCenter();
+    ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), 0, ImVec2(0.5f, 0.5f));
 
     if (ImGui::Begin("configWindow", nullptr,
         ImGuiWindowFlags_NoCollapse |
@@ -393,7 +393,8 @@ void PluginMenu::Render() noexcept
         ImGui::SameLine(ImGui::GetWindowWidth() - (4 * ImGui::CalcTextSize(kTitleText).y + (vTabWidth -
             4 * ImGui::CalcTextSize(kTitleText).y) / 2.f + ImGui::GetStyle().WindowPadding.x));
 
-        ImGui::Image(PluginMenu::tLogo->GetTexture(), { 4 * ImGui::CalcTextSize(kTitleText).y, ImGui::CalcTextSize(kTitleText).y });
+        ImGui::Image(ImTextureRef((ImTextureID)(intptr_t)PluginMenu::tLogo->GetTexture()),
+            { 4 * ImGui::CalcTextSize(kTitleText).y, ImGui::CalcTextSize(kTitleText).y });
 
         ImGui::PopFont();
         ImGui::NewLine();
@@ -705,7 +706,7 @@ void PluginMenu::Render() noexcept
                 ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.f, 0.f });
                 ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0.f, 0.f });
 
-                if (ImGui::BeginChildFrame(1, { listWidth, listHeight },
+                if (ImGui::BeginChild(1, { listWidth, listHeight }, ImGuiChildFlags_FrameStyle,
                     ImGuiWindowFlags_NoCollapse |
                     ImGuiWindowFlags_NoFocusOnAppearing |
                     ImGuiWindowFlags_NoTitleBar |
@@ -754,7 +755,7 @@ void PluginMenu::Render() noexcept
                         }
                     }
 
-                    ImGui::EndChildFrame();
+                    ImGui::EndChild();
                 }
 
                 ImGui::PopStyleVar();
@@ -782,7 +783,7 @@ void PluginMenu::Render() noexcept
                 ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.f, 0.f });
                 ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0.f, 0.f });
 
-                if (ImGui::BeginChildFrame(2, { listWidth, listHeight },
+                if (ImGui::BeginChild(2, { listWidth, listHeight }, ImGuiChildFlags_FrameStyle,
                     ImGuiWindowFlags_NoCollapse |
                     ImGuiWindowFlags_NoFocusOnAppearing |
                     ImGuiWindowFlags_NoTitleBar |
@@ -839,7 +840,7 @@ void PluginMenu::Render() noexcept
                         }
                     }
 
-                    ImGui::EndChildFrame();
+                    ImGui::EndChild();
                 }
 
                 ImGui::PopStyleVar();
