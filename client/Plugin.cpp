@@ -66,6 +66,16 @@ namespace
             return result;
         }
 
+        // Prefer font.ttf, fall back to font.otf (both are supported by
+        // stb_truetype: TrueType glyphs and CFF/OTF outlines).
+        static ExternalResource LoadFont() noexcept
+        {
+            auto result = ExternalResource::Load("font.ttf");
+            if (!result.IsValid())
+                result = ExternalResource::Load("font.otf");
+            return result;
+        }
+
         bool IsValid() const noexcept
         {
             return view.IsValid();
@@ -685,7 +695,7 @@ void Plugin::OnDeviceInit(IDirect3D9* const pDirect,
     const auto activeIcon = ExternalResource::Load("micro_active.png");
     const auto mutedIcon = ExternalResource::Load("micro_muted.png");
     const auto speakerIcon = ExternalResource::Load("speaker.png");
-    const auto fontFile = ExternalResource::Load("font.ttf");
+    const auto fontFile = ExternalResource::LoadFont();
     const auto logoFile = ExternalResource::Load("logo.png");
     const auto shaderFile = ExternalResource::Load("gauss.hlsl");
 
@@ -766,7 +776,7 @@ void Plugin::OnAfterReset(IDirect3DDevice9* const pDevice,
     const auto activeIcon = ExternalResource::Load("micro_active.png");
     const auto mutedIcon = ExternalResource::Load("micro_muted.png");
     const auto speakerIcon = ExternalResource::Load("speaker.png");
-    const auto fontFile = ExternalResource::Load("font.ttf");
+    const auto fontFile = ExternalResource::LoadFont();
     const auto logoFile = ExternalResource::Load("logo.png");
     const auto shaderFile = ExternalResource::Load("gauss.hlsl");
 
