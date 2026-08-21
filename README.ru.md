@@ -1,5 +1,5 @@
 # **SAMPVOICE** [Оригинальный репозиторий](https://github.com/CyberMor/sampvoice)
-[English](https://github.com/AmyrAhmady/sampvoice/blob/master/README.md) | Русский
+[English](https://github.com/dockfries/sampvoice/blob/master/README.md) | Русский | [简体中文](https://github.com/dockfries/sampvoice/blob/master/README.zh-CN.md)
 
 ## Описание
 ---------------------------------
@@ -27,18 +27,18 @@
 
 ##### Автоматический вариант
 ---------------------------------
-1. Для того, чтобы скачать установщик перейдите по [ссылке](https://github.com/AmyrAhmady/sampvoice/releases) и выберите подходящую версию плагина.
+1. Для того, чтобы скачать установщик перейдите по [ссылке](https://github.com/dockfries/sampvoice/releases) и выберите подходящую версию плагина.
 2. После скачивания запустите установщик, выберите язык установки, затем установщик автоматически определит директорию игры.
 3. Если директория верна, нажмите "ОК" и дождитесь конца установки. После окончания установки установщик завершит свою работу.
 
 ##### Ручной вариант
 ---------------------------------
-1. Перейдите по [ссылке](https://github.com/AmyrAhmady/sampvoice/releases) и скачайте архив с необходимой версией клиента.
+1. Перейдите по [ссылке](https://github.com/dockfries/sampvoice/releases) и скачайте архив с необходимой версией клиента.
 2. Распакуйте содержимое архива в корневую директорию игры с заменой файлов.
 
 #### Для разработчиков
 ---------------------------------
-1. Загрузите архив с необходимой версией плагина для вашей платформы по [ссылке](https://github.com/AmyrAhmady/sampvoice/releases).
+1. Загрузите архив с необходимой версией плагина для вашей платформы по [ссылке](https://github.com/dockfries/sampvoice/releases).
 2. Распакуйте архив в корневую директорию сервера.
 3. Добавьте в файл конфигурации сервера *server.cfg* строку *"plugins sampvoice"* для *Win32* и *"plugins sampvoice.so"* для *Linux x86*. **(Если у вас стоит плагин Pawn.RakNet обязательно разместите SampVoice после него)**
 
@@ -213,7 +213,7 @@ SvEnableSpeaker(playerid, CH_GLOBAL | CH_TEAM);  // squad запрещён
 
 Склонируйте репозиторий себе на компьютер и перейдите в директорию плагина:
 ```sh
-git clone https://github.com/AmyrAhmady/sampvoice.git
+git clone https://github.com/dockfries/sampvoice.git
 git submodule update --init --recursive
 cd sampvoice
 ```

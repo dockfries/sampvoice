@@ -1,5 +1,5 @@
 # **SAMPVOICE** [Original repository](https://github.com/CyberMor/sampvoice)
-English | [Русский](https://github.com/AmyrAhmady/sampvoice/blob/master/README.ru.md) | [简体中文](https://github.com/AmyrAhmady/sampvoice/blob/master/README.zh-CN.md)
+English | [Русский](https://github.com/dockfries/sampvoice/blob/master/README.ru.md) | [简体中文](https://github.com/dockfries/sampvoice/blob/master/README.zh-CN.md)
 
 ## Changes in this fork
 ---------------------------------
@@ -61,18 +61,18 @@ Players have access to 2 installation options: automatic (via the installer) and
 
 ##### Automatically
 ---------------------------------
-1. In order to download the installer, head over to [the `releases` page](https://github.com/AmyrAhmady/sampvoice/releases) and choose the desired version of the plugin.
+1. In order to download the installer, head over to [the `releases` page](https://github.com/dockfries/sampvoice/releases) and choose the desired version of the plugin.
 2. After downloading, launch the installer and choose the desired language for your installation, afterwards the installer will automatically find your GTA San Andreas folder.
 3. If the directory is correct, click "OK" and wait for the installation to complete. After the installation is complete, the installer will exit.
 
 ##### Manually
 ---------------------------------
-1. Head over [the `releases` page](https://github.com/AmyrAhmady/sampvoice/releases) and download the archive with the desired client version.
+1. Head over [the `releases` page](https://github.com/dockfries/sampvoice/releases) and download the archive with the desired client version.
 2. Extract the archive to your GTA San Andreas folder.
 
 #### For developers
 ---------------------------------
-1. Download from [the `releases` page](https://github.com/AmyrAhmady/sampvoice/releases) the desired version of the plugin for your platform.
+1. Download from [the `releases` page](https://github.com/dockfries/sampvoice/releases) the desired version of the plugin for your platform.
 2. Unpack the archive to the root directory of the server.
 3. Add to the *server.cfg* server configuration file the line *"plugins sampvoice"* for *Win32* and *"plugins sampvoice.so"* for *Linux x86*. **(If you have a Pawn.RakNet plugin be sure to place SampVoice after it)**
 
@@ -261,7 +261,7 @@ Below are further instructions:
 
 Clone the repository to your computer and go to the plugin directory:
 ```sh
-git clone https://github.com/AmyrAhmady/sampvoice.git
+git clone https://github.com/dockfries/sampvoice.git
 git submodule update --init --recursive
 cd sampvoice
 ```

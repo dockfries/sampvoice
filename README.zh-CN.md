@@ -1,5 +1,5 @@
 # **SAMPVOICE** [原始仓库](https://github.com/CyberMor/sampvoice)
-简体中文 | [English](https://github.com/AmyrAhmady/sampvoice/blob/master/README.md) | [Русский](https://github.com/AmyrAhmady/sampvoice/blob/master/README.ru.md)
+简体中文 | [English](https://github.com/dockfries/sampvoice/blob/master/README.md) | [Русский](https://github.com/dockfries/sampvoice/blob/master/README.ru.md)
 
 ## 本分支的改动
 ---------------------------------
@@ -40,18 +40,18 @@
 
 ##### 自动安装
 ---------------------------------
-1. 前往[发布页面](https://github.com/AmyrAhmady/sampvoice/releases)，选择所需版本的插件下载安装程序。
+1. 前往[发布页面](https://github.com/dockfries/sampvoice/releases)，选择所需版本的插件下载安装程序。
 2. 下载后运行安装程序，选择安装语言，安装程序会自动找到你的 GTA San Andreas 目录。
 3. 如果目录正确，点击"确定"并等待安装完成。安装完成后，安装程序会退出。
 
 ##### 手动安装
 ---------------------------------
-1. 前往[发布页面](https://github.com/AmyrAhmady/sampvoice/releases)，下载所需客户端版本的压缩包。
+1. 前往[发布页面](https://github.com/dockfries/sampvoice/releases)，下载所需客户端版本的压缩包。
 2. 将压缩包解压到你的 GTA San Andreas 目录。
 
 #### 开发者安装
 ---------------------------------
-1. 从[发布页面](https://github.com/AmyrAhmady/sampvoice/releases)下载适用于你平台的插件版本。
+1. 从[发布页面](https://github.com/dockfries/sampvoice/releases)下载适用于你平台的插件版本。
 2. 将压缩包解压到服务器的根目录。
 3. 在 *server.cfg* 服务器配置文件中添加一行 *"plugins sampvoice"*（*Win32*）或 *"plugins sampvoice.so"*（*Linux x86*）。**（如果你有 Pawn.RakNet 插件，请确保 SampVoice 排在它之后）**
 
@@ -239,7 +239,7 @@ SvEnableSpeaker(playerid, CH_GLOBAL | CH_TEAM);  // 禁止该玩家使用小队�
 
 把仓库克隆到你的电脑并进入插件目录：
 ```sh
-git clone https://github.com/AmyrAhmady/sampvoice.git
+git clone https://github.com/dockfries/sampvoice.git
 git submodule update --init --recursive
 cd sampvoice
 ```
