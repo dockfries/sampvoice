@@ -44,13 +44,36 @@
 
 #pragma comment(lib, "comctl32.lib")
 
-#define FontResource IDR_FONT1, RT_FONT
-#define LogoIconResource IDB_PNG1, "PNG"
-#define BlurShaderResource IDR_HLSL1, "HLSL"
-#define PassiveMicroIconResource IDB_PNG4, "PNG"
-#define ActiveMicroIconResource IDB_PNG2, "PNG"
-#define MutedMicroIconResource IDB_PNG3, "PNG"
-#define SpeakerIconResource IDB_PNG5, "PNG"
+namespace
+{
+    /*
+        Owns the bytes of an external resource file and exposes them as a
+        ResourceData view, so UI modules can consume files from the
+        <asi-dir>\resources\ directory.
+    */
+    struct ExternalResource {
+
+        static ExternalResource Load(const char* const fileName) noexcept
+        {
+            ExternalResource result;
+            result.data = Storage::ReadFile(Storage::GetResourcePath(fileName));
+            if (!result.data.empty())
+            {
+                result.view.ptr = result.data.data();
+                result.view.size = result.data.size();
+            }
+            return result;
+        }
+
+        bool IsValid() const noexcept
+        {
+            return view.IsValid();
+        }
+
+        std::vector<uint8_t> data;
+        ResourceData view;
+    };
+}
 
 bool Plugin::OnPluginLoad(const HMODULE hModule) noexcept
 {
@@ -651,10 +674,16 @@ void Plugin::OnDeviceInit(IDirect3D9* const pDirect,
     Logger::LogToFile("[sv:dbg:render:plugin] : graphics initialization started "
         "(direct:%p device:%p hwnd:%p)", pDirect, pDevice, dParameters.hDeviceWindow);
 
+    const auto passiveIcon = ExternalResource::Load("micro_passive.png");
+    const auto activeIcon = ExternalResource::Load("micro_active.png");
+    const auto mutedIcon = ExternalResource::Load("micro_muted.png");
+    const auto speakerIcon = ExternalResource::Load("speaker.png");
+    const auto fontFile = ExternalResource::Load("font.ttf");
+    const auto logoFile = ExternalResource::Load("logo.png");
+    const auto shaderFile = ExternalResource::Load("gauss.hlsl");
+
     const auto microIconStatus = MicroIcon::Init(pDevice,
-        Resource(Plugin::pModuleHandle, PassiveMicroIconResource),
-        Resource(Plugin::pModuleHandle, ActiveMicroIconResource),
-        Resource(Plugin::pModuleHandle, MutedMicroIconResource));
+        passiveIcon.view, activeIcon.view, mutedIcon.view);
     Logger::LogToFile("[sv:dbg:render:plugin] : MicroIcon initialization %s",
         microIconStatus ? "succeeded" : "failed");
 
@@ -665,15 +694,12 @@ void Plugin::OnDeviceInit(IDirect3D9* const pDirect,
     if (imguiStatus)
     {
         const auto speakerListStatus = SpeakerList::Init(pDevice,
-            Resource(Plugin::pModuleHandle, SpeakerIconResource),
-            Resource(Plugin::pModuleHandle, FontResource));
+            speakerIcon.view, fontFile.view);
         Logger::LogToFile("[sv:dbg:render:plugin] : SpeakerList initialization %s",
             speakerListStatus ? "succeeded" : "failed");
 
         const auto pluginMenuStatus = PluginMenu::Init(pDevice,
-            Resource(Plugin::pModuleHandle, BlurShaderResource),
-            Resource(Plugin::pModuleHandle, LogoIconResource),
-            Resource(Plugin::pModuleHandle, FontResource));
+            shaderFile.view, logoFile.view, fontFile.view);
         Logger::LogToFile("[sv:dbg:render:plugin] : PluginMenu initialization %s",
             pluginMenuStatus ? "succeeded" : "failed");
     }
@@ -729,10 +755,16 @@ void Plugin::OnAfterReset(IDirect3DDevice9* const pDevice,
 
     Logger::LogToFile("[sv:dbg:render:plugin] : post-reset initialization started (device:%p)", pDevice);
 
+    const auto passiveIcon = ExternalResource::Load("micro_passive.png");
+    const auto activeIcon = ExternalResource::Load("micro_active.png");
+    const auto mutedIcon = ExternalResource::Load("micro_muted.png");
+    const auto speakerIcon = ExternalResource::Load("speaker.png");
+    const auto fontFile = ExternalResource::Load("font.ttf");
+    const auto logoFile = ExternalResource::Load("logo.png");
+    const auto shaderFile = ExternalResource::Load("gauss.hlsl");
+
     const auto microIconStatus = MicroIcon::Init(pDevice,
-        Resource(Plugin::pModuleHandle, PassiveMicroIconResource),
-        Resource(Plugin::pModuleHandle, ActiveMicroIconResource),
-        Resource(Plugin::pModuleHandle, MutedMicroIconResource));
+        passiveIcon.view, activeIcon.view, mutedIcon.view);
     Logger::LogToFile("[sv:dbg:render:plugin] : post-reset MicroIcon initialization %s",
         microIconStatus ? "succeeded" : "failed");
 
@@ -743,15 +775,12 @@ void Plugin::OnAfterReset(IDirect3DDevice9* const pDevice,
     if (imguiStatus)
     {
         const auto speakerListStatus = SpeakerList::Init(pDevice,
-            Resource(Plugin::pModuleHandle, SpeakerIconResource),
-            Resource(Plugin::pModuleHandle, FontResource));
+            speakerIcon.view, fontFile.view);
         Logger::LogToFile("[sv:dbg:render:plugin] : post-reset SpeakerList initialization %s",
             speakerListStatus ? "succeeded" : "failed");
 
         const auto pluginMenuStatus = PluginMenu::Init(pDevice,
-            Resource(Plugin::pModuleHandle, BlurShaderResource),
-            Resource(Plugin::pModuleHandle, LogoIconResource),
-            Resource(Plugin::pModuleHandle, FontResource));
+            shaderFile.view, logoFile.view, fontFile.view);
         Logger::LogToFile("[sv:dbg:render:plugin] : post-reset PluginMenu initialization %s",
             pluginMenuStatus ? "succeeded" : "failed");
     }

@@ -31,7 +31,7 @@
 #include "PluginConfig.h"
 
 bool SpeakerList::Init(IDirect3DDevice9* const pDevice,
-    const Resource& rSpeakerIcon, const Resource& rSpeakerFont) noexcept
+    const ResourceData& rSpeakerIcon, const ResourceData& rSpeakerFont) noexcept
 {
     if (pDevice == nullptr)
         return false;
@@ -64,8 +64,8 @@ bool SpeakerList::Init(IDirect3DDevice9* const pDevice,
         ImFontConfig fontConfig;
         fontConfig.FontDataOwnedByAtlas = false;
 
-        SpeakerList::pSpeakerFont = ImGui::GetIO().Fonts->AddFontFromMemoryTTF(rSpeakerFont.GetDataPtr(),
-            rSpeakerFont.GetDataSize(), varFontSize, &fontConfig, ImGui::GetIO().Fonts->GetGlyphRangesCyrillic());
+        SpeakerList::pSpeakerFont = ImGui::GetIO().Fonts->AddFontFromMemoryTTF(rSpeakerFont.ptr,
+            static_cast<int>(rSpeakerFont.size), varFontSize, &fontConfig, ImGui::GetIO().Fonts->GetGlyphRangesCyrillic());
 
         if (SpeakerList::pSpeakerFont == nullptr)
         {

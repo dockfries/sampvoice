@@ -5,10 +5,6 @@ file(GLOB_RECURSE sampvoice_client_source_list
     "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/*.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/*.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/*.rc"
-)
-file(GLOB_RECURSE sampvoice_client_resources_list
-    "${CMAKE_CURRENT_SOURCE_DIR}/resources/*.*"
 )
 
 set(SAMPAPI_ROOT "${PROJECT_SOURCE_DIR}/lib/sampapi")
@@ -62,7 +58,6 @@ foreach(i RANGE ${NUM_VER})
 
     add_library(sampvoice_${ver_suffix} SHARED EXCLUDE_FROM_ALL
         ${sampvoice_client_source_list}
-        ${sampvoice_client_resources_list}
     )
 
     target_include_directories(sampvoice_${ver_suffix} PRIVATE
@@ -96,12 +91,6 @@ foreach(i RANGE ${NUM_VER})
     if(MSVC)
         set_target_properties(sampvoice_${ver_suffix} PROPERTIES
             LINK_FLAGS "/SAFESEH:NO"
-        )
-        # gauss.hlsl is embedded as a raw resource (IDR_HLSL1) and compiled at
-        # runtime via D3DXCreateEffectFromResource; it must not be passed to fxc.
-        set_source_files_properties(
-            "${CMAKE_CURRENT_SOURCE_DIR}/resources/gauss.hlsl"
-            PROPERTIES HEADER_FILE_ONLY TRUE
         )
     endif()
 endforeach()

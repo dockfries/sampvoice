@@ -18,7 +18,7 @@
 
 #include <imgui/imgui.h>
 #include <util/Memory.hpp>
-#include <util/Resource.h>
+#include <util/ResourceData.h>
 #include <svapi.h>
 #include <util/BlurEffect.h>
 #include <util/Texture.h>
@@ -131,7 +131,7 @@ private:
 public:
 
     static bool Init(IDirect3DDevice9* pDevice,
-        const Resource& rShader, const Resource& rLogo, const Resource& rFont) noexcept;
+        const ResourceData& rShader, const ResourceData& rLogo, const ResourceData& rFont) noexcept;
     static void Free() noexcept;
 
     static bool Show() noexcept;

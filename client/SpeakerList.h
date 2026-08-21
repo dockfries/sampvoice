@@ -24,7 +24,7 @@
 #include <imgui/imgui.h>
 
 #include <svapi.h>
-#include <util/Resource.h>
+#include <util/ResourceData.h>
 #include <util/Texture.h>
 
 #include "Stream.h"
@@ -48,7 +48,7 @@ private:
 public:
 
     static bool Init(IDirect3DDevice9* pDevice,
-        const Resource& rSpeakerIcon, const Resource& rSpeakerFont) noexcept;
+        const ResourceData& rSpeakerIcon, const ResourceData& rSpeakerFont) noexcept;
     static void Free() noexcept;
 
     static void Show() noexcept;

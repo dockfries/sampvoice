@@ -22,8 +22,6 @@
 #include <raknet/bitstream.h>
 #include <raknet/rakclient.h>
 
-#include "resources/resource.h"
-
 #include "ControlPacket.h"
 #include "Stream.h"
 

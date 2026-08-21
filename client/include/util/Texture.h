@@ -17,7 +17,6 @@
 #include <rpc.h>
 #include <d3dx9.h>
 
-#include "Resource.h"
 #include "ResourceData.h"
 
 class Texture {

@@ -19,8 +19,8 @@
 
 #include "PluginConfig.h"
 
-bool MicroIcon::Init(IDirect3DDevice9* const pDevice, const Resource& rPassiveIcon,
-    const Resource& rActiveIcon, const Resource& rMutedIcon) noexcept
+bool MicroIcon::Init(IDirect3DDevice9* const pDevice, const ResourceData& rPassiveIcon,
+    const ResourceData& rActiveIcon, const ResourceData& rMutedIcon) noexcept
 {
     if (pDevice == nullptr)
         return false;

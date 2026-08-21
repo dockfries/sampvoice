@@ -13,7 +13,7 @@
 
 #include <d3d9.h>
 
-#include <util/Resource.h>
+#include <util/ResourceData.h>
 #include <util/Texture.h>
 
 class MicroIcon {
@@ -34,8 +34,8 @@ private:
 
 public:
 
-    static bool Init(IDirect3DDevice9* pDevice, const Resource& rPassiveIcon,
-        const Resource& rActiveIcon, const Resource& rMutedIcon) noexcept;
+    static bool Init(IDirect3DDevice9* pDevice, const ResourceData& rPassiveIcon,
+        const ResourceData& rActiveIcon, const ResourceData& rMutedIcon) noexcept;
     static void Free() noexcept;
 
     static void Show() noexcept;
