@@ -200,3 +200,26 @@ const std::vector<std::string>& Language::GetAvailableLanguages() noexcept
 
     return availableLanguages;
 }
+
+std::string Language::GetLanguageDisplayName(const std::string& languageId) noexcept
+{
+    if (languageId.empty())
+        return {};
+
+    const std::string filePath = Storage::GetLanguagesPath() + languageId + ".json";
+    const auto fileData = Storage::ReadFile(filePath);
+    if (fileData.empty())
+        return languageId;
+
+    try
+    {
+        const nlohmann::json root = nlohmann::json::parse(fileData.begin(), fileData.end());
+        if (const auto it = root.find("language"); it != root.end() && it->is_string())
+            return it->get<std::string>();
+    }
+    catch (const std::exception&)
+    {
+    }
+
+    return languageId;
+}

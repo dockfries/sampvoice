@@ -12,6 +12,8 @@
 #include "ImGuiUtil.h"
 
 #include <cassert>
+#include <string>
+#include <vector>
 
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_dx9.h>
@@ -200,6 +202,50 @@ const ImWchar* ImGuiUtil::GetGlyphRanges() noexcept
     }();
 
     return ranges;
+}
+
+std::string ImGuiUtil::AnsiToUtf8(const char* const ansi) noexcept
+{
+    if (ansi == nullptr || *ansi == '\0')
+        return {};
+
+    const int wideLen = MultiByteToWideChar(CP_ACP, 0, ansi, -1, nullptr, 0);
+    if (wideLen <= 0)
+        return ansi;
+
+    std::vector<wchar_t> wideBuf(wideLen);
+    MultiByteToWideChar(CP_ACP, 0, ansi, -1, wideBuf.data(), wideLen);
+
+    const int utf8Len = WideCharToMultiByte(CP_UTF8, 0, wideBuf.data(), -1, nullptr, 0, nullptr, nullptr);
+    if (utf8Len <= 0)
+        return ansi;
+
+    std::string utf8Buf(utf8Len - 1, '\0');
+    WideCharToMultiByte(CP_UTF8, 0, wideBuf.data(), -1, utf8Buf.data(), utf8Len, nullptr, nullptr);
+
+    return utf8Buf;
+}
+
+std::string ImGuiUtil::Utf8ToAnsi(const char* const utf8) noexcept
+{
+    if (utf8 == nullptr || *utf8 == '\0')
+        return {};
+
+    const int wideLen = MultiByteToWideChar(CP_UTF8, 0, utf8, -1, nullptr, 0);
+    if (wideLen <= 0)
+        return utf8;
+
+    std::vector<wchar_t> wideBuf(wideLen);
+    MultiByteToWideChar(CP_UTF8, 0, utf8, -1, wideBuf.data(), wideLen);
+
+    const int ansiLen = WideCharToMultiByte(CP_ACP, 0, wideBuf.data(), -1, nullptr, 0, nullptr, nullptr);
+    if (ansiLen <= 0)
+        return utf8;
+
+    std::string ansiBuf(ansiLen - 1, '\0');
+    WideCharToMultiByte(CP_ACP, 0, wideBuf.data(), -1, ansiBuf.data(), ansiLen, nullptr, nullptr);
+
+    return ansiBuf;
 }
 
 bool ImGuiUtil::initStatus { false };

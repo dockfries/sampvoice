@@ -270,7 +270,8 @@ void SpeakerList::Render()
 
                     ImGui::NextColumn();
 
-                    ImGui::TextColored(color, "%s (%hu)", playerName, playerId);
+                    ImGui::TextColored(color, "%s (%hu)",
+                        ImGuiUtil::AnsiToUtf8(playerName).c_str(), playerId);
 
                     ImGui::NextColumn();
 

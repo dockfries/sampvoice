@@ -62,6 +62,10 @@ namespace Language {
     // Returns the active display name of the current language (e.g. "Русский").
     const std::string& GetLanguageName() noexcept;
 
+    // Display name for a given language id (file name), read from its JSON.
+    // Falls back to the id itself when the file is missing or unreadable.
+    std::string GetLanguageDisplayName(const std::string& languageId) noexcept;
+
     const char* Get(TextId id) noexcept;
 
     // Names of all available language files (without extension), for the menu combo.

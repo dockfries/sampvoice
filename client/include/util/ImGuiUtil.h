@@ -11,6 +11,8 @@
 
 #pragma once
 
+#include <string>
+
 #include <Windows.h>
 #include <d3d9.h>
 
@@ -39,6 +41,11 @@ public:
 
     // Glyph ranges for UI fonts: Latin + Cyrillic + simplified Chinese.
     static const ImWchar* GetGlyphRanges() noexcept;
+
+    // String helpers: SA-MP stores nicknames in the system ANSI code page
+    // (e.g. GBK on Chinese Windows), while ImGui works with UTF-8.
+    static std::string AnsiToUtf8(const char* ansi) noexcept;
+    static std::string Utf8ToAnsi(const char* utf8) noexcept;
 
     static LRESULT WindowProc(HWND hWnd, UINT uMsg,
         WPARAM wParam, LPARAM lParam) noexcept;

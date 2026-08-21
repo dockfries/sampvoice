@@ -26,37 +26,6 @@
 #include "Record.h"
 #include "PluginConfig.h"
 
-namespace
-{
-    /*
-        Player nicknames in the SA-MP client are stored in the system ANSI
-        code page (e.g. GBK on Chinese Windows), while ImGui input arrives as
-        UTF-8. Convert the filter text so std::strstr can match nicknames
-        containing multi-byte characters.
-    */
-    std::string Utf8ToAnsi(const char* const utf8) noexcept
-    {
-        if (utf8 == nullptr || *utf8 == '\0')
-            return {};
-
-        const int wideLen = MultiByteToWideChar(CP_UTF8, 0, utf8, -1, nullptr, 0);
-        if (wideLen <= 0)
-            return utf8;
-
-        std::vector<wchar_t> wideBuf(wideLen);
-        MultiByteToWideChar(CP_UTF8, 0, utf8, -1, wideBuf.data(), wideLen);
-
-        const int ansiLen = WideCharToMultiByte(CP_ACP, 0, wideBuf.data(), -1, nullptr, 0, nullptr, nullptr);
-        if (ansiLen <= 0)
-            return utf8;
-
-        std::string ansiBuf(ansiLen - 1, '\0');
-        WideCharToMultiByte(CP_ACP, 0, wideBuf.data(), -1, ansiBuf.data(), ansiLen, nullptr, nullptr);
-
-        return ansiBuf;
-    }
-}
-
 bool PluginMenu::Init(IDirect3DDevice9* const pDevice,
     const ResourceData& const rShader, const ResourceData& const rLogo, const ResourceData& const rFont) noexcept
 {
@@ -467,11 +436,13 @@ void PluginMenu::Render() noexcept
 
                     ImGui::PushItemWidth(-1);
                     if (ImGui::BeginCombo(kLanguageText, currentLangIndex >= 0
-                        ? languages[currentLangIndex].c_str() : currentLang.c_str()))
+                        ? Language::GetLanguageDisplayName(languages[currentLangIndex]).c_str()
+                        : currentLang.c_str()))
                     {
                         for (int i { 0 }; i < static_cast<int>(languages.size()); ++i)
                         {
-                            if (ImGui::Selectable(languages[i].c_str(), i == currentLangIndex))
+                            const std::string displayName = Language::GetLanguageDisplayName(languages[i]);
+                            if (ImGui::Selectable(displayName.c_str(), i == currentLangIndex))
                             {
                                 PluginConfig::SetLanguage(languages[i]);
                                 Language::Load(languages[i]);
@@ -748,7 +719,7 @@ void PluginMenu::Render() noexcept
                                 if (pPlayerPool->m_pObject[playerId] == nullptr) continue;
                                 if (const auto playerName = pPlayerPool->m_pObject[playerId]->m_szNick.c_str(); playerName != nullptr)
                                 {
-                                    const std::string filterName = Utf8ToAnsi(PluginMenu::nBuffer.data());
+                                    const std::string filterName = ImGuiUtil::Utf8ToAnsi(PluginMenu::nBuffer.data());
                                     if ((filterName.empty() || (iPlayerId != SV::kNonePlayer ? playerId == iPlayerId :
                                          static_cast<bool>(std::strstr(playerName, filterName.c_str())))) &&
                                         !BlackList::IsPlayerBlocked(playerId))
@@ -763,12 +734,13 @@ void PluginMenu::Render() noexcept
                                         }
 
                                         ImGui::SetCursorPos({ oldCurPos.x + 5.f, oldCurPos.y + 1.f });
+                                        const std::string displayName = ImGuiUtil::AnsiToUtf8(playerName);
                                         if (const auto pInfo = pPlayerPool->m_pObject[playerId]; pInfo != nullptr)
                                             if (auto stPlayer = pInfo->m_pPlayer)
                                                 ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(htonl(stPlayer->GetColorAsRGBA() |
-                                                    0xff000000)), "(%hu) %s", playerId, playerName);
-                                            else ImGui::Text("(%hu) %s", playerId, playerName);
-                                        else ImGui::Text("(%hu) %s", playerId, playerName);
+                                                    0xff000000)), "(%hu) %s", playerId, displayName.c_str());
+                                            else ImGui::Text("(%hu) %s", playerId, displayName.c_str());
+                                        else ImGui::Text("(%hu) %s", playerId, displayName.c_str());
                                         ImGui::PopID();
                                     }
                                 }
@@ -816,7 +788,7 @@ void PluginMenu::Render() noexcept
 
                     for (const auto& playerInfo : blackList)
                     {
-                        const std::string filterName = Utf8ToAnsi(PluginMenu::nBuffer.data());
+                        const std::string filterName = ImGuiUtil::Utf8ToAnsi(PluginMenu::nBuffer.data());
                         if (!(filterName.empty() || (iPlayerId != SV::kNonePlayer ? playerInfo.playerId == iPlayerId :
                             static_cast<bool>(std::strstr(playerInfo.playerName.c_str(), filterName.c_str()))))) continue;
 
@@ -831,6 +803,8 @@ void PluginMenu::Render() noexcept
 
                         ImGui::SetCursorPos({ oldCurPos.x + 5.f, oldCurPos.y + 1.f });
 
+                        const std::string displayName = ImGuiUtil::AnsiToUtf8(playerInfo.playerName.c_str());
+
                         if (playerInfo.playerId != SV::kNonePlayer)
                         {
                             const auto pNetGame2 = sv::RefNetGame();
@@ -839,11 +813,11 @@ void PluginMenu::Render() noexcept
                             if (pInfo != nullptr)
                                 if (auto stPlayer = pInfo->m_pPlayer)
                                     ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(htonl(stPlayer->GetColorAsRGBA())),
-                                        "%s (%hu)", playerInfo.playerName.c_str(), playerInfo.playerId);
-                                else ImGui::Text("%s (%hu)", playerInfo.playerName.c_str(), playerInfo.playerId);
-                            else ImGui::Text("%s (%hu)", playerInfo.playerName.c_str(), playerInfo.playerId);
+                                        "%s (%hu)", displayName.c_str(), playerInfo.playerId);
+                                else ImGui::Text("%s (%hu)", displayName.c_str(), playerInfo.playerId);
+                            else ImGui::Text("%s (%hu)", displayName.c_str(), playerInfo.playerId);
                         }
-                        else ImGui::TextDisabled("%s", playerInfo.playerName.c_str());
+                        else ImGui::TextDisabled("%s", displayName.c_str());
 
                         const ImVec2 cPos { (oldCurScreenPos.x + listWidth) - (ImGui::GetFontSize() / 2.f + 2.f +
                             ImGui::GetStyle().ScrollbarSize), oldCurScreenPos.y + (ImGui::GetFontSize() / 2.f + 1.f) };
