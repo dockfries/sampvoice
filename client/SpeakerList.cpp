@@ -39,6 +39,12 @@ bool SpeakerList::Init(IDirect3DDevice9* const pDevice,
     if (SpeakerList::initStatus || !ImGuiUtil::IsInited())
         return false;
 
+    if (!rSpeakerFont.IsValid())
+    {
+        Logger::LogToFile("[sv:err:speakerlist:init] : font data is missing");
+        return false;
+    }
+
     try
     {
         SpeakerList::tSpeakerIcon = MakeTexture(pDevice, rSpeakerIcon);

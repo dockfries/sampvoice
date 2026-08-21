@@ -90,6 +90,7 @@ namespace {
     std::array<std::string, static_cast<std::size_t>(TextId::kCount)> activeStrings;
     std::string activeLanguageName { "English" };
     std::vector<std::string> availableLanguages;
+    std::map<std::string, std::string> languageDisplayNames;
 
     void ResetToEnglish() noexcept
     {
@@ -98,10 +99,34 @@ namespace {
         activeLanguageName = "English";
     }
 
-    // Lists every *.json file in <languages>/ (name only, no extension).
+    // Reads the "language" display name from a language JSON file.
+    // Returns the id itself when the file is missing or unreadable.
+    std::string ReadLanguageDisplayName(const std::string& languageId) noexcept
+    {
+        const std::string filePath = Storage::GetLanguagesPath() + languageId + ".json";
+        const auto fileData = Storage::ReadFile(filePath);
+        if (fileData.empty())
+            return languageId;
+
+        try
+        {
+            const nlohmann::json root = nlohmann::json::parse(fileData.begin(), fileData.end());
+            if (const auto it = root.find("language"); it != root.end() && it->is_string())
+                return it->get<std::string>();
+        }
+        catch (const std::exception&)
+        {
+        }
+
+        return languageId;
+    }
+
+    // Lists every *.json file in <languages>/ (name only, no extension) and
+    // caches the localized display name of each pack.
     void EnumerateLanguages() noexcept
     {
         availableLanguages.clear();
+        languageDisplayNames.clear();
 
         const std::string languagesPath = Storage::GetLanguagesPath();
         if (languagesPath.empty()) return;
@@ -120,7 +145,9 @@ namespace {
                 if (fileName.size() > 5 &&
                     _stricmp(fileName.c_str() + fileName.size() - 5, kJsonExt) == 0)
                 {
-                    availableLanguages.emplace_back(fileName.substr(0, fileName.size() - 5));
+                    const std::string languageId = fileName.substr(0, fileName.size() - 5);
+                    availableLanguages.emplace_back(languageId);
+                    languageDisplayNames.emplace(languageId, ReadLanguageDisplayName(languageId));
                 }
             }
         }
@@ -206,20 +233,12 @@ std::string Language::GetLanguageDisplayName(const std::string& languageId) noex
     if (languageId.empty())
         return {};
 
-    const std::string filePath = Storage::GetLanguagesPath() + languageId + ".json";
-    const auto fileData = Storage::ReadFile(filePath);
-    if (fileData.empty())
-        return languageId;
+    if (availableLanguages.empty())
+        EnumerateLanguages();
 
-    try
-    {
-        const nlohmann::json root = nlohmann::json::parse(fileData.begin(), fileData.end());
-        if (const auto it = root.find("language"); it != root.end() && it->is_string())
-            return it->get<std::string>();
-    }
-    catch (const std::exception&)
-    {
-    }
+    const auto it = languageDisplayNames.find(languageId);
+    if (it != languageDisplayNames.end())
+        return it->second;
 
     return languageId;
 }

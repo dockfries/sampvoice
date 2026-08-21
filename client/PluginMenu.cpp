@@ -35,6 +35,12 @@ bool PluginMenu::Init(IDirect3DDevice9* const pDevice,
     if (PluginMenu::initStatus || !ImGuiUtil::IsInited())
         return false;
 
+    if (!rFont.IsValid())
+    {
+        Logger::LogToFile("[sv:err:pluginmenu:init] : font data is missing");
+        return false;
+    }
+
     try
     {
         const BYTE returnOpcode { 0xC3 };
