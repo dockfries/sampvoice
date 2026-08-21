@@ -41,6 +41,10 @@ bool PluginMenu::Init(IDirect3DDevice9* const pDevice,
         return false;
     }
 
+    // Load the persisted language on the render thread (the same thread that
+    // reads it), so the language table never races with menu rendering.
+    Language::Load(PluginConfig::GetLanguage());
+
     try
     {
         const BYTE returnOpcode { 0xC3 };
@@ -682,9 +686,9 @@ void PluginMenu::Render() noexcept
 
                 const float listWidth = (ImGui::GetWindowWidth() - 4.f * ImGui::GetStyle().WindowPadding.x) / 2.f;
 
-                WORD iPlayerId;
+                WORD iPlayerId { SV::kNonePlayer };
 
-                if (_snscanf_s(PluginMenu::nBuffer.data(), PluginMenu::nBuffer.size(), "%hu", &iPlayerId) == 0)
+                if (_snscanf_s(PluginMenu::nBuffer.data(), PluginMenu::nBuffer.size(), "%hu", &iPlayerId) != 1)
                     iPlayerId = SV::kNonePlayer;
 
                 ImGui::PushItemWidth(listWidth);

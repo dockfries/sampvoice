@@ -87,7 +87,14 @@ namespace {
         "language",
     };
 
-    std::array<std::string, static_cast<std::size_t>(TextId::kCount)> activeStrings;
+    // Default to English so Get() never returns empty strings before Load().
+    std::array<std::string, static_cast<std::size_t>(TextId::kCount)> activeStrings = []
+    {
+        std::array<std::string, static_cast<std::size_t>(TextId::kCount)> init;
+        for (std::size_t i { 0 }; i < kEnglishStrings.size(); ++i)
+            init[i] = kEnglishStrings[i];
+        return init;
+    }();
     std::string activeLanguageName { "English" };
     std::vector<std::string> availableLanguages;
     std::map<std::string, std::string> languageDisplayNames;
@@ -183,9 +190,9 @@ void Language::Load(const std::string& languageName) noexcept
         if (const auto it = root.find("language"); it != root.end() && it->is_string())
             activeLanguageName = it->get<std::string>();
 
-        const auto& strings = root["strings"];
-        if (strings.is_object())
+        if (const auto stringsIt = root.find("strings"); stringsIt != root.end() && stringsIt->is_object())
         {
+            const auto& strings = *stringsIt;
             for (std::size_t i { 0 }; i < kTextKeys.size(); ++i)
             {
                 if (const auto it = strings.find(kTextKeys[i]);

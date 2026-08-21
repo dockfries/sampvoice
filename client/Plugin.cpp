@@ -151,8 +151,6 @@ bool Plugin::OnSampLoad(const HMODULE hModule) noexcept
         Logger::LogToFile("[sv:err:plugin] : failed to load configs");
     }
 
-    Language::Load(PluginConfig::GetLanguage());
-
     if (!Samp::Init(Plugin::sampBaseAddr))
     {
         Logger::LogToFile("[sv:err:plugin] : failed to init samp");
