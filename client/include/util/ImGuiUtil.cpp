@@ -20,6 +20,8 @@
 #include <imgui/imgui_impl_dx9.h>
 #include <imgui/imgui_impl_win32.h>
 
+#include "Logger.h"
+
 #include "Memory.hpp"
 #include "Logger.h"
 
@@ -168,50 +170,22 @@ LRESULT ImGuiUtil::WindowProc(const HWND hWnd, const UINT uMsg,
 
     if (uMsg == WM_CHAR)
     {
-        // wParam carries a UTF-16 code unit on Unicode windows (the SA:MP
-        // window is registered as Unicode, and Microsoft Pinyin IME delivers
-        // UTF-16 here). On ANSI/MBCS windows it is a single-byte or DBCS
-        // value, which needs code-page conversion.
-        if (::IsWindowUnicode(hWnd))
-        {
-            if (wParam > 0 && wParam < 0x10000)
-                ImGui::GetIO().AddInputCharacter(static_cast<ImWchar>(wParam));
-        }
-        else
-        {
-            wchar_t wch { 0 };
-            if (::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED,
-                reinterpret_cast<const char*>(&wParam), 2, &wch, 1) > 0)
-            {
-                ImGui::GetIO().AddInputCharacter(wch);
-            }
-        }
+        // wParam already carries a UTF-16 code unit from the window manager;
+        // feed it straight to ImGui (unlike the previous single-byte CP_ACP
+        // re-encode, this keeps multi-byte characters intact).
+        if (wParam > 0 && wParam < 0x10000)
+            ImGui::GetIO().AddInputCharacter(static_cast<ImWchar>(wParam));
 
         return TRUE;
     }
 
     if (uMsg == WM_IME_CHAR)
     {
-        // On Unicode windows wParam is already UTF-16; on ANSI windows it
-        // packs the DBCS lead/trail bytes and needs code-page conversion.
-        if (::IsWindowUnicode(hWnd))
-        {
-            if (wParam > 0 && wParam < 0x10000)
-                ImGui::GetIO().AddInputCharacter(static_cast<ImWchar>(wParam));
-        }
-        else
-        {
-            WPARAM dbcs = wParam;
-            if (::IsDBCSLeadByte(HIBYTE(dbcs)))
-                dbcs = MAKEWORD(HIBYTE(dbcs), LOBYTE(dbcs));
-
-            wchar_t wch { 0 };
-            if (::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED,
-                reinterpret_cast<const char*>(&dbcs), 2, &wch, 1) > 0)
-            {
-                ImGui::GetIO().AddInputCharacter(wch);
-            }
-        }
+        // Characters produced by an IME composition session. On the SA:MP
+        // window the IME delivers UTF-16 code units (verified at runtime),
+        // so feed them straight into ImGui.
+        if (wParam > 0 && wParam < 0x10000)
+            ImGui::GetIO().AddInputCharacter(static_cast<ImWchar>(wParam));
 
         return TRUE;
     }
