@@ -165,11 +165,20 @@ LRESULT ImGuiUtil::WindowProc(const HWND hWnd, const UINT uMsg,
 
     if (uMsg == WM_CHAR)
     {
-        if (wchar_t wChar; MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED,
-            reinterpret_cast<LPCSTR>(&wParam), 1, &wChar, 1) == 1)
-        {
-            ImGui::GetIO().AddInputCharacter(wChar);
-        }
+        // wParam already carries a UTF-16 code unit from the window manager;
+        // feed it straight to ImGui (unlike the previous single-byte CP_ACP
+        // re-encode, this keeps multi-byte characters intact).
+        if (wParam > 0 && wParam < 0x10000)
+            ImGui::GetIO().AddInputCharacter(static_cast<ImWchar>(wParam));
+
+        return TRUE;
+    }
+
+    if (uMsg == WM_IME_CHAR)
+    {
+        // Characters produced by an IME composition session.
+        if (wParam > 0 && wParam < 0x10000)
+            ImGui::GetIO().AddInputCharacter(static_cast<ImWchar>(wParam));
 
         return TRUE;
     }

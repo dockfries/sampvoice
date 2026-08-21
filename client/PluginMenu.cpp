@@ -11,6 +11,8 @@
 
 #include "PluginMenu.h"
 
+#include <vector>
+
 #include <svapi.h>
 #include <util/Addresses.h>
 #include <util/ImGuiUtil.h>
@@ -22,6 +24,37 @@
 #include "MicroIcon.h"
 #include "Playback.h"
 #include "Record.h"
+
+namespace
+{
+    /*
+        Player nicknames in the SA-MP client are stored in the system ANSI
+        code page (e.g. GBK on Chinese Windows), while ImGui input arrives as
+        UTF-8. Convert the filter text so std::strstr can match nicknames
+        containing multi-byte characters.
+    */
+    std::string Utf8ToAnsi(const char* const utf8) noexcept
+    {
+        if (utf8 == nullptr || *utf8 == '\0')
+            return {};
+
+        const int wideLen = MultiByteToWideChar(CP_UTF8, 0, utf8, -1, nullptr, 0);
+        if (wideLen <= 0)
+            return utf8;
+
+        std::vector<wchar_t> wideBuf(wideLen);
+        MultiByteToWideChar(CP_UTF8, 0, utf8, -1, wideBuf.data(), wideLen);
+
+        const int ansiLen = WideCharToMultiByte(CP_ACP, 0, wideBuf.data(), -1, nullptr, 0, nullptr, nullptr);
+        if (ansiLen <= 0)
+            return utf8;
+
+        std::string ansiBuf(ansiLen - 1, '\0');
+        WideCharToMultiByte(CP_ACP, 0, wideBuf.data(), -1, ansiBuf.data(), ansiLen, nullptr, nullptr);
+
+        return ansiBuf;
+    }
+}
 
 bool PluginMenu::Init(IDirect3DDevice9* const pDevice,
     const ResourceData& const rShader, const ResourceData& const rLogo, const ResourceData& const rFont) noexcept
@@ -709,8 +742,9 @@ void PluginMenu::Render() noexcept
                                 if (pPlayerPool->m_pObject[playerId] == nullptr) continue;
                                 if (const auto playerName = pPlayerPool->m_pObject[playerId]->m_szNick.c_str(); playerName != nullptr)
                                 {
-                                    if ((PluginMenu::nBuffer[0] == '\0' || (iPlayerId != SV::kNonePlayer ? playerId == iPlayerId :
-                                         static_cast<bool>(std::strstr(playerName, PluginMenu::nBuffer.data())))) &&
+                                    const std::string filterName = Utf8ToAnsi(PluginMenu::nBuffer.data());
+                                    if ((filterName.empty() || (iPlayerId != SV::kNonePlayer ? playerId == iPlayerId :
+                                         static_cast<bool>(std::strstr(playerName, filterName.c_str())))) &&
                                         !BlackList::IsPlayerBlocked(playerId))
                                     {
                                         ImGui::PushID(playerId);
@@ -776,8 +810,9 @@ void PluginMenu::Render() noexcept
 
                     for (const auto& playerInfo : blackList)
                     {
-                        if (!(PluginMenu::nBuffer[0] == '\0' || (iPlayerId != SV::kNonePlayer ? playerInfo.playerId == iPlayerId :
-                            static_cast<bool>(std::strstr(playerInfo.playerName.c_str(), PluginMenu::nBuffer.data()))))) continue;
+                        const std::string filterName = Utf8ToAnsi(PluginMenu::nBuffer.data());
+                        if (!(filterName.empty() || (iPlayerId != SV::kNonePlayer ? playerInfo.playerId == iPlayerId :
+                            static_cast<bool>(std::strstr(playerInfo.playerName.c_str(), filterName.c_str()))))) continue;
 
                         const ImVec2 oldCurPos = ImGui::GetCursorPos();
                         const ImVec2 oldCurScreenPos = ImGui::GetCursorScreenPos();
