@@ -18,6 +18,7 @@
 #include <d3dx9.h>
 
 #include "Resource.h"
+#include "ResourceData.h"
 
 class Texture {
 
@@ -30,7 +31,7 @@ class Texture {
 public:
 
     explicit Texture(IDirect3DDevice9* pDevice,
-                     const Resource& rTexture);
+                     const ResourceData& rTexture);
 
     ~Texture() noexcept;
 

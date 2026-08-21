@@ -19,7 +19,7 @@
 #include "Memory.hpp"
 #include "Logger.h"
 
-BlurEffect::BlurEffect(IDirect3DDevice9* const pDevice, const Resource& rEffect) : pDevice(pDevice)
+BlurEffect::BlurEffect(IDirect3DDevice9* const pDevice, const ResourceData& rEffect) : pDevice(pDevice)
 {
     assert(pDevice != nullptr);
 
@@ -46,7 +46,7 @@ BlurEffect::BlurEffect(IDirect3DDevice9* const pDevice, const Resource& rEffect)
     {
         ID3DXBuffer* pErrorBuffer { nullptr };
 
-        if (const auto hResult = D3DXCreateEffect(pDevice, rEffect.GetDataPtr(), rEffect.GetDataSize(),
+        if (const auto hResult = D3DXCreateEffect(pDevice, rEffect.ptr, static_cast<UINT>(rEffect.size),
             NULL, NULL, D3DXFX_DONOTSAVESTATE | D3DXFX_NOT_CLONEABLE | D3DXSHADER_ENABLE_BACKWARDS_COMPATIBILITY,
             NULL, &this->pEffect, &pErrorBuffer); FAILED(hResult))
         {

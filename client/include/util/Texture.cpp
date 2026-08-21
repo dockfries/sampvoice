@@ -13,10 +13,10 @@
 
 #include "Logger.h"
 
-Texture::Texture(IDirect3DDevice9* const pDevice, const Resource& rTexture)
+Texture::Texture(IDirect3DDevice9* const pDevice, const ResourceData& rTexture)
 {
     if (const auto hResult = D3DXCreateTextureFromFileInMemory(pDevice,
-        rTexture.GetDataPtr(), rTexture.GetDataSize(), &this->pTexture); FAILED(hResult))
+        rTexture.ptr, static_cast<UINT>(rTexture.size), &this->pTexture); FAILED(hResult))
     {
         Logger::LogToFile("[err:texture] : failed to create texture (code:%ld)", hResult);
         throw std::exception();

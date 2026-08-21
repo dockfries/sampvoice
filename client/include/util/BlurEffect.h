@@ -18,6 +18,7 @@
 #include <d3dx9.h>
 
 #include "Resource.h"
+#include "ResourceData.h"
 
 class BlurEffect {
 
@@ -30,7 +31,7 @@ class BlurEffect {
 public:
 
     explicit BlurEffect(IDirect3DDevice9* pDevice,
-                        const Resource& rEffect);
+                        const ResourceData& rEffect);
 
     ~BlurEffect() noexcept;
 
