@@ -92,6 +92,8 @@ foreach(i RANGE ${NUM_VER})
         set_target_properties(sampvoice_${ver_suffix} PROPERTIES
             LINK_FLAGS "/SAFESEH:NO"
         )
+        # Store string literals as UTF-8 so svlog.txt is consistently UTF-8.
+        target_compile_options(sampvoice_${ver_suffix} PRIVATE "/utf-8")
     endif()
 endforeach()
 
