@@ -4,16 +4,29 @@
 #include <cstdio>
 #include <vector>
 
+#include "Logger.h"
+
 std::string Storage::basePath;
 
 bool Storage::Initialize() noexcept
 {
-    char buffer[MAX_PATH];
-    const DWORD length = GetCurrentDirectory(MAX_PATH, buffer);
+    if (!Storage::basePath.empty())
+        return true;
+
+    char modulePath[MAX_PATH] {};
+    const DWORD length = GetModuleFileNameA(nullptr, modulePath, MAX_PATH);
     if (length == 0 || length >= MAX_PATH) return false;
 
-    basePath = buffer;
-    basePath += "\\sampvoice\\resources\\";
+    // modulePath points at the .asi/.exe; strip the file name to get the directory.
+    char* const lastSlash = std::strrchr(modulePath, '\\');
+    if (lastSlash == nullptr) return false;
+
+    *lastSlash = '\0';
+
+    Storage::basePath = modulePath;
+    Storage::basePath += "\\sampvoice\\resources\\";
+
+    Logger::LogToFile("[sv:inf:storage] : resource base path '%s'", Storage::basePath.c_str());
 
     return true;
 }
@@ -24,13 +37,22 @@ std::string Storage::GetResourcePath(const char* const fileName) noexcept
     return basePath + fileName;
 }
 
+std::string Storage::GetLanguagesPath() noexcept
+{
+    if (basePath.empty()) return {};
+
+    // resources/ -> languages/  (siblings under <dir>\sampvoice\)
+    const std::string baseDir = basePath.substr(0, basePath.size() - std::strlen("resources\\"));
+    return baseDir + "languages\\";
+}
+
 void Storage::ForEachFile(const std::function<void(const std::string&)>& callback) noexcept
 {
     if (basePath.empty()) return;
 
     const std::string searchPath = basePath + "*";
-    WIN32_FIND_DATA data;
-    const HANDLE handle = FindFirstFile(searchPath.c_str(), &data);
+    WIN32_FIND_DATAA data;
+    const HANDLE handle = FindFirstFileA(searchPath.c_str(), &data);
     if (handle == INVALID_HANDLE_VALUE) return;
 
     do
@@ -40,7 +62,7 @@ void Storage::ForEachFile(const std::function<void(const std::string&)>& callbac
             callback(basePath + data.cFileName);
         }
     }
-    while (FindNextFile(handle, &data));
+    while (FindNextFileA(handle, &data));
 
     FindClose(handle);
 }

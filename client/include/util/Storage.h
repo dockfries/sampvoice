@@ -20,6 +20,7 @@ public:
 
     static bool Initialize() noexcept;
     static std::string GetResourcePath(const char* fileName) noexcept;
+    static std::string GetLanguagesPath() noexcept;
     static void ForEachFile(const std::function<void(const std::string&)>& callback) noexcept;
     static std::vector<uint8_t> ReadFile(const std::string& path) noexcept;
 

@@ -24,6 +24,7 @@
 #include <util/KeyFilter.h>
 #include <util/RakNet.h>
 #include <util/Logger.h>
+#include <util/Storage.h>
 #include <util/Timer.h>
 
 #include "Record.h"
@@ -60,6 +61,13 @@ bool Plugin::OnPluginLoad(const HMODULE hModule) noexcept
 
     if (!Logger::Init(Path() / SV::kLogFileName))
         return false;
+
+    if (!Storage::Initialize())
+    {
+        Logger::LogToFile("[sv:err:plugin] : failed to initialize storage module");
+        Logger::Free();
+        return false;
+    }
 
     if (!Render::Init())
     {
