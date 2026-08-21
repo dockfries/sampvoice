@@ -748,7 +748,7 @@ void PluginMenu::Render() noexcept
                                 {
                                     const std::string filterName = ImGuiUtil::Utf8ToAnsi(PluginMenu::nBuffer.data());
                                     if ((filterName.empty() || (iPlayerId != SV::kNonePlayer ? playerId == iPlayerId :
-                                         static_cast<bool>(std::strstr(playerName, filterName.c_str())))) &&
+                                         static_cast<bool>(ImGuiUtil::FindSubstringNoCase(playerName, filterName.c_str())))) &&
                                         !BlackList::IsPlayerBlocked(playerId))
                                     {
                                         ImGui::PushID(playerId);
@@ -817,7 +817,7 @@ void PluginMenu::Render() noexcept
                     {
                         const std::string filterName = ImGuiUtil::Utf8ToAnsi(PluginMenu::nBuffer.data());
                         if (!(filterName.empty() || (iPlayerId != SV::kNonePlayer ? playerInfo.playerId == iPlayerId :
-                            static_cast<bool>(std::strstr(playerInfo.playerName.c_str(), filterName.c_str()))))) continue;
+                            static_cast<bool>(ImGuiUtil::FindSubstringNoCase(playerInfo.playerName.c_str(), filterName.c_str()))))) continue;
 
                         const ImVec2 oldCurPos = ImGui::GetCursorPos();
                         const ImVec2 oldCurScreenPos = ImGui::GetCursorScreenPos();

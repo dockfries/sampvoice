@@ -12,6 +12,7 @@
 #include "ImGuiUtil.h"
 
 #include <cassert>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -269,6 +270,36 @@ std::string ImGuiUtil::Utf8ToAnsi(const char* const utf8) noexcept
     WideCharToMultiByte(CP_ACP, 0, wideBuf.data(), -1, ansiBuf.data(), ansiLen, nullptr, nullptr);
 
     return ansiBuf;
+}
+
+const char* ImGuiUtil::FindSubstringNoCase(const char* const haystack, const char* const needle) noexcept
+{
+    if (haystack == nullptr || needle == nullptr)
+        return nullptr;
+
+    const auto asciiLower = [](const char c) -> char
+    {
+        return (c >= 'A' && c <= 'Z') ? static_cast<char>(c - 'A' + 'a') : c;
+    };
+
+    const std::size_t needleLen = std::strlen(needle);
+    if (needleLen == 0)
+        return haystack;
+
+    const std::size_t haystackLen = std::strlen(haystack);
+    if (needleLen > haystackLen)
+        return nullptr;
+
+    for (std::size_t i { 0 }; i <= haystackLen - needleLen; ++i)
+    {
+        std::size_t j { 0 };
+        while (j < needleLen && asciiLower(haystack[i + j]) == asciiLower(needle[j]))
+            ++j;
+        if (j == needleLen)
+            return haystack + i;
+    }
+
+    return nullptr;
 }
 
 bool ImGuiUtil::initStatus { false };

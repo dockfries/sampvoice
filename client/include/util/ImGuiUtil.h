@@ -47,6 +47,11 @@ public:
     static std::string AnsiToUtf8(const char* ansi) noexcept;
     static std::string Utf8ToAnsi(const char* utf8) noexcept;
 
+    // Case-insensitive substring search. Only ASCII letters are folded;
+    // non-ASCII bytes (e.g. multi-byte ANSI nicknames) are compared verbatim
+    // to avoid corrupting multi-byte sequences. Returns nullptr when not found.
+    static const char* FindSubstringNoCase(const char* haystack, const char* needle) noexcept;
+
     static LRESULT WindowProc(HWND hWnd, UINT uMsg,
         WPARAM wParam, LPARAM lParam) noexcept;
 
