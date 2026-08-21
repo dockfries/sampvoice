@@ -166,26 +166,10 @@ LRESULT ImGuiUtil::WindowProc(const HWND hWnd, const UINT uMsg,
     if (!ImGuiUtil::win32loadStatus)
         return FALSE;
 
-    if (uMsg == WM_CHAR)
-    {
-        // wParam already carries a UTF-16 code unit from the window manager;
-        // feed it straight to ImGui (unlike the previous single-byte CP_ACP
-        // re-encode, this keeps multi-byte characters intact).
-        if (wParam > 0 && wParam < 0x10000)
-            ImGui::GetIO().AddInputCharacter(static_cast<ImWchar>(wParam));
-
-        return TRUE;
-    }
-
-    if (uMsg == WM_IME_CHAR)
-    {
-        // Characters produced by an IME composition session.
-        if (wParam > 0 && wParam < 0x10000)
-            ImGui::GetIO().AddInputCharacter(static_cast<ImWchar>(wParam));
-
-        return TRUE;
-    }
-
+    // WM_CHAR / WM_IME_CHAR are handled by ImGui_ImplWin32_WndProcHandler,
+    // which correctly converts the code page for the ANSI (MBCS) game window
+    // (including DBCS lead/trail bytes from IME). Intercepting them here would
+    // corrupt multi-byte input on the SA:MP window.
     extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
     return ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam);
 }
