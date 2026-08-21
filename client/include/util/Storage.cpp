@@ -24,7 +24,7 @@ bool Storage::Initialize() noexcept
     *lastSlash = '\0';
 
     Storage::basePath = modulePath;
-    Storage::basePath += "\\resources\\";
+    Storage::basePath += "\\sampvoice\\resources\\";
 
     Logger::LogToFile("[sv:inf:storage] : resource base path '%s'", Storage::basePath.c_str());
 
@@ -41,7 +41,7 @@ std::string Storage::GetLanguagesPath() noexcept
 {
     if (basePath.empty()) return {};
 
-    // resources/ -> languages/  (siblings under <asi-dir>\)
+    // resources/ -> languages/  (siblings under <asi-dir>\sampvoice\)
     const std::string baseDir = basePath.substr(0, basePath.size() - std::strlen("resources\\"));
     return baseDir + "languages\\";
 }

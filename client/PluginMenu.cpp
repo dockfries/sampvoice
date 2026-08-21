@@ -11,6 +11,7 @@
 
 #include "PluginMenu.h"
 
+#include <algorithm>
 #include <vector>
 
 #include <svapi.h>
@@ -445,7 +446,22 @@ void PluginMenu::Render() noexcept
                         if (languages[i] == currentLang) { currentLangIndex = i; break; }
                     }
 
-                    ImGui::PushItemWidth(-1);
+                    // Size the combo to the longest language display name so the
+                    // "Language" label on the right stays fully visible.
+                    float maxNameWidth { 0.f };
+                    for (int i { 0 }; i < static_cast<int>(languages.size()); ++i)
+                    {
+                        maxNameWidth = (std::max)(maxNameWidth,
+                            ImGui::CalcTextSize(Language::GetLanguageDisplayName(languages[i]).c_str()).x);
+                    }
+                    if (currentLangIndex >= 0)
+                    {
+                        maxNameWidth = (std::max)(maxNameWidth,
+                            ImGui::CalcTextSize(Language::GetLanguageDisplayName(languages[currentLangIndex]).c_str()).x);
+                    }
+                    const float comboWidth = maxNameWidth + 48.f;
+
+                    ImGui::PushItemWidth(comboWidth);
                     if (ImGui::BeginCombo(kLanguageText, currentLangIndex >= 0
                         ? Language::GetLanguageDisplayName(languages[currentLangIndex]).c_str()
                         : currentLang.c_str()))

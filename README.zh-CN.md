@@ -279,9 +279,9 @@ cmake --build . --target sampvoice-client
 
 > **注意：** 打包运行时文件（BASS DLL、语言文件、资源）到 `.asi` 旁，请参考 CI 工作流 `.github/workflows/build.yml`。
 
-> **注意：** 客户端从 `.asi` 同级目录的 `resources/` 文件夹加载全部 UI 资源（字体、图标、模糊着色器），从 `languages/` 加载语言包。这两个文件夹**运行时必需**。
+> **注意：** 客户端从 `.asi` 同级目录的 `sampvoice/resources/` 文件夹加载全部 UI 资源（字体、图标、模糊着色器），从 `sampvoice/languages/` 加载语言包。这两个文件夹**运行时必需**。
 >
-> **自定义 UI 字体：** 把任意 TrueType（`.ttf`）或 OpenType（`.otf`）字体放到 `resources/font.ttf` / `resources/font.otf` 即可替换 UI 字体（加载器优先 `font.ttf`，其次 `font.otf`）。烘焙进图集的字形范围覆盖：拉丁、西里尔、希腊、希伯来、阿拉伯（无 RTL 排版）、全量 CJK、日文假名、韩文谚文和泰文；超出这些范围的字符会显示为占位方框。注意，更大的字体文件只有在所需字形位于这些范围内时才有意义。
+> **自定义 UI 字体：** 把任意 TrueType（`.ttf`）或 OpenType（`.otf`）字体放到 `sampvoice/resources/font.ttf` / `sampvoice/resources/font.otf` 即可替换 UI 字体（加载器优先 `font.ttf`，其次 `font.otf`）。烘焙进图集的字形范围覆盖：拉丁、西里尔、希腊、希伯来、阿拉伯（无 RTL 排版）、全量 CJK、日文假名、韩文谚文和泰文；超出这些范围的字符会显示为占位方框。注意，更大的字体文件只有在所需字形位于这些范围内时才有意义。
 
 > **注意：** 客户端需要 `d3dx9.h` 头文件。如果安装了 DirectX SDK，请设置 `DXSDK_DIR`。否则构建会通过 NuGet（`Microsoft.DXSDK.D3DX`）找到它们，或使用 `client/include/dxsdk/` 中的本地头文件。无需单独安装 DXSDK。
 

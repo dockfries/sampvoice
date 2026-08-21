@@ -70,8 +70,8 @@ jobs:
           mkdir package -Force
           Copy-Item "build_client/client/sampvoice_${{ matrix.version }}.asi" "package/sampvoice.asi"
           Copy-Item "client/files/binaries/*.dll" "package/"
-          Copy-Item -Recurse "client/files/resources" "package/resources"
-          Copy-Item -Recurse "client/files/languages" "package/languages"
+          Copy-Item -Recurse "client/files/resources" "package/sampvoice/resources"
+          Copy-Item -Recurse "client/files/languages" "package/sampvoice/languages"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
