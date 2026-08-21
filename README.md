@@ -1,6 +1,40 @@
 # **SAMPVOICE** [Original repository](https://github.com/CyberMor/sampvoice)
 English | [Русский](https://github.com/AmyrAhmady/sampvoice/blob/master/README.ru.md)
 
+## Changes in this fork
+---------------------------------
+This fork adds several client-side improvements on top of the open.mp port:
+
+* **External UI resources** — the client loads fonts, icons, the blur shader and
+  language packs from `resources/` and `languages/` folders placed next to the
+  `.asi`, instead of embedding them. No UI resource is compiled into the binary.
+  * `resources/font.ttf` (or `font.otf`) can be replaced by the user to change
+    the UI font. The baked glyph atlas covers Latin, Cyrillic, Greek, Hebrew,
+    Arabic (glyphs only, no RTL shaping), full CJK, Japanese kana, Korean and
+    Thai.
+* **Runtime language packs** — menu strings are loaded from
+  `languages/<name>.json` (UTF-8, key/value) with an English fallback. A
+  Language selector in the General tab switches packs at runtime and persists
+  the choice. Packaged languages: English, Русский, Srpski, Bahasa Indonesia,
+  Português (Brasil), 简体中文.
+* **Multi-byte input & display** — `WM_CHAR`/`WM_IME_CHAR` are fed straight
+  into ImGui (IME-composed Chinese input works), player nicknames are converted
+  from the system ANSI code page to UTF-8 for display, and the blacklist filter
+  normalizes the input to the system code page before matching.
+* **Mic availability fix** — recording devices are enumerated locally at game
+  load instead of only during the server handshake, so the menu no longer
+  reports "No microphones available" when the server lacks the plugin.
+* **Push-to-talk latency** — per-keypress debug logging removed and the BASS
+  recording channel is kept running while the mic is enabled, draining stale
+  data instead of pausing/playing on every key press.
+* **omp-cef compatibility** — the render lifecycle was refactored: window
+  messages use `SetWindowSubclass` instead of `SetWindowLong`, the
+  `Direct3DCreate9` call site is hooked with byte validation, and the D3D9
+  wrappers use internal COM reference counting.
+* **Dear ImGui upgraded to v1.92.9b** (from 1.68 WIP) and adapted to the new
+  API (`BeginChild(ImGuiChildFlags_FrameStyle)`, `ImTextureRef`, atlas
+  self-management, font data kept alive for the atlas lifetime).
+
 ## Description
 ---------------------------------
 **SAMPVOICE** - is a Software Development Kit (SDK) for implementing voice communication systems in the Pawn language for open.mp servers.
