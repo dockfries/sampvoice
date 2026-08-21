@@ -29,6 +29,71 @@ namespace
     }
 }
 
+void Record::EnumerateDevices() noexcept
+{
+    if (Record::devicesEnumerated)
+        return;
+
+    Record::deviceNamesList.clear();
+    Record::deviceNumbersList.clear();
+
+    BASS_DEVICEINFO devInfo {};
+
+    for (int devNumber { 0 }; BASS_RecordGetDeviceInfo(devNumber, &devInfo); ++devNumber)
+    {
+        const bool deviceEnabled = devInfo.flags & BASS_DEVICE_ENABLED;
+        const bool deviceLoopback = devInfo.flags & BASS_DEVICE_LOOPBACK;
+        const DWORD deviceType = devInfo.flags & BASS_DEVICE_TYPE_MASK;
+
+        Logger::LogToFile("[sv:dbg:record:enum] : device detect "
+            "[ id(%d) enabled(%hhu) loopback(%hhu) name(%s) type(0x%x) ]",
+            devNumber, deviceEnabled, deviceLoopback, devInfo.name != nullptr
+            ? devInfo.name : "none", deviceType);
+
+        if (deviceEnabled && !deviceLoopback && devInfo.name != nullptr)
+        {
+            try
+            {
+                // Convert device name from the system ANSI code page
+                // (e.g. GBK on Chinese Windows) to UTF-8
+                std::string utf8Name;
+                {
+                    const int wideLen = MultiByteToWideChar(CP_ACP, 0, devInfo.name, -1, nullptr, 0);
+                    if (wideLen > 0)
+                    {
+                        std::vector<wchar_t> wideBuf(wideLen);
+                        MultiByteToWideChar(CP_ACP, 0, devInfo.name, -1, wideBuf.data(), wideLen);
+                        const int utf8Len = WideCharToMultiByte(CP_UTF8, 0, wideBuf.data(), -1, nullptr, 0, nullptr, nullptr);
+                        if (utf8Len > 0)
+                        {
+                            utf8Name.resize(utf8Len - 1);
+                            WideCharToMultiByte(CP_UTF8, 0, wideBuf.data(), -1, utf8Name.data(), utf8Len, nullptr, nullptr);
+                        }
+                    }
+                }
+
+                Record::deviceNumbersList.emplace_back(devNumber);
+                Record::deviceNamesList.emplace_back(utf8Name.empty() ? devInfo.name : utf8Name);
+            }
+            catch (const std::exception& exception)
+            {
+                Logger::LogToFile("[sv:err:record:enum] : failed to add device");
+                return;
+            }
+        }
+    }
+
+    Record::devicesEnumerated = true;
+
+    Logger::LogToFile("[sv:dbg:record:enum] : enumerated %u device(s)",
+        static_cast<unsigned>(Record::deviceNamesList.size()));
+}
+
+bool Record::IsDevicesEnumerated() noexcept
+{
+    return Record::devicesEnumerated;
+}
+
 bool Record::Init(const DWORD bitrate) noexcept
 {
     if (Record::initStatus)
@@ -39,60 +104,12 @@ bool Record::Init(const DWORD bitrate) noexcept
 
     Logger::LogToFile("[sv:dbg:record:init] : module initializing...");
 
-    Record::deviceNamesList.clear();
-    Record::deviceNumbersList.clear();
-
-    {
-        BASS_DEVICEINFO devInfo {};
-
-        for (int devNumber { 0 }; BASS_RecordGetDeviceInfo(devNumber, &devInfo); ++devNumber)
-        {
-            const bool deviceEnabled = devInfo.flags & BASS_DEVICE_ENABLED;
-            const bool deviceLoopback = devInfo.flags & BASS_DEVICE_LOOPBACK;
-            const DWORD deviceType = devInfo.flags & BASS_DEVICE_TYPE_MASK;
-
-            Logger::LogToFile("[sv:dbg:record:init] : device detect "
-                "[ id(%d) enabled(%hhu) loopback(%hhu) name(%s) type(0x%x) ]",
-                devNumber, deviceEnabled, deviceLoopback, devInfo.name != nullptr
-                ? devInfo.name : "none", deviceType);
-
-            if (deviceEnabled && !deviceLoopback && devInfo.name != nullptr)
-            {
-                try
-                {
-                    // Convert device name from the system ANSI code page
-                    // (e.g. GBK on Chinese Windows) to UTF-8
-                    std::string utf8Name;
-                    {
-                        const int wideLen = MultiByteToWideChar(CP_ACP, 0, devInfo.name, -1, nullptr, 0);
-                        if (wideLen > 0)
-                        {
-                            std::vector<wchar_t> wideBuf(wideLen);
-                            MultiByteToWideChar(CP_ACP, 0, devInfo.name, -1, wideBuf.data(), wideLen);
-                            const int utf8Len = WideCharToMultiByte(CP_UTF8, 0, wideBuf.data(), -1, nullptr, 0, nullptr, nullptr);
-                            if (utf8Len > 0)
-                            {
-                                utf8Name.resize(utf8Len - 1);
-                                WideCharToMultiByte(CP_UTF8, 0, wideBuf.data(), -1, utf8Name.data(), utf8Len, nullptr, nullptr);
-                            }
-                        }
-                    }
-
-                    Record::deviceNumbersList.emplace_back(devNumber);
-                    Record::deviceNamesList.emplace_back(utf8Name.empty() ? devInfo.name : utf8Name);
-                }
-                catch (const std::exception& exception)
-                {
-                    Logger::LogToFile("[sv:err:record:init] : failed to add device");
-                    return false;
-                }
-            }
-        }
-    }
+    Record::EnumerateDevices();
 
     Memory::ScopeExit deviceListsResetScope { [] { Record::usedDeviceIndex = -1;
                                                    Record::deviceNamesList.clear();
-                                                   Record::deviceNumbersList.clear(); } };
+                                                   Record::deviceNumbersList.clear();
+                                                   Record::devicesEnumerated = false; } };
 
     if (Record::deviceNamesList.empty() || Record::deviceNumbersList.empty())
     {
@@ -299,6 +316,7 @@ void Record::Free() noexcept
     Record::usedDeviceIndex = -1;
     Record::deviceNumbersList.clear();
     Record::deviceNamesList.clear();
+    Record::devicesEnumerated = false;
 
     Logger::LogToFile("[sv:dbg:record:free] : module released");
 
@@ -532,6 +550,7 @@ const std::vector<int>& Record::GetDeviceNumbersList() noexcept
 }
 
 bool Record::initStatus { false };
+bool Record::devicesEnumerated { false };
 
 bool Record::checkStatus { false };
 bool Record::recordStatus { false };

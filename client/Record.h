@@ -34,6 +34,11 @@ public:
     static bool Init(DWORD bitrate) noexcept;
     static void Free() noexcept;
 
+    // Enumerates recording devices locally (does not depend on the server
+    // plugin being present). Safe to call before Record::Init.
+    static void EnumerateDevices() noexcept;
+    static bool IsDevicesEnumerated() noexcept;
+
     static void Tick() noexcept;
     static bool HasMicro() noexcept;
 
@@ -64,6 +69,7 @@ public:
 private:
 
     static bool initStatus;
+    static bool devicesEnumerated;
 
     static bool checkStatus;
     static bool recordStatus;

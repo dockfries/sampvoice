@@ -575,6 +575,11 @@ void PluginMenu::Render() noexcept
                 ImGui::PopFont();
                 ImGui::NewLine();
 
+                // The device list is enumerated locally at game load, so it
+                // reflects real hardware even when the server plugin is absent.
+                if (!Record::IsDevicesEnumerated())
+                    Record::EnumerateDevices();
+
                 const auto& devList = Record::GetDeviceNamesList();
 
                 if (!devList.empty())

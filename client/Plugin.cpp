@@ -138,6 +138,10 @@ bool Plugin::OnSampLoad(const HMODULE hModule) noexcept
         return false;
     }
 
+    // Enumerate recording devices locally so the menu can show real device
+    // availability even before the server plugin handshake.
+    Record::EnumerateDevices();
+
     Samp::AddLoadCallback(Plugin::OnInitGame);
     Samp::AddExitCallback(Plugin::OnExitGame);
 
