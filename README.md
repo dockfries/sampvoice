@@ -6,21 +6,23 @@ English | [Русский](https://github.com/dockfries/sampvoice/blob/master/RE
 This fork adds several client-side improvements on top of the open.mp port:
 
 * **External UI resources** — the client loads fonts, icons, the blur shader and
-  language packs from `resources/` and `languages/` folders placed next to the
-  `.asi`, instead of embedding them. No UI resource is compiled into the binary.
-  * `resources/font.ttf` (or `font.otf`) can be replaced by the user to change
-    the UI font. The baked glyph atlas covers Latin, Cyrillic, Greek, Hebrew,
-    Arabic (glyphs only, no RTL shaping), full CJK, Japanese kana, Korean and
-    Thai.
+  language packs from the `sampvoice/resources/` and `sampvoice/languages/`
+  folders placed next to the `.asi`, instead of embedding them. No UI resource
+  is compiled into the binary.
+  * `sampvoice/resources/font.ttf` (or `font.otf`) can be replaced by the user
+    to change the UI font. The baked glyph atlas covers Latin, Cyrillic, Greek,
+    Hebrew, Arabic (glyphs only, no RTL shaping), full CJK, Japanese kana,
+    Korean and Thai.
 * **Runtime language packs** — menu strings are loaded from
-  `languages/<name>.json` (UTF-8, key/value) with an English fallback. A
-  Language selector in the General tab switches packs at runtime and persists
-  the choice. Packaged languages: English, Русский, Srpski, Bahasa Indonesia,
-  Português (Brasil), 简体中文.
+  `sampvoice/languages/<name>.json` (UTF-8, key/value) with an English
+  fallback. A Language selector in the General tab switches packs at runtime
+  and persists the choice. Packaged languages: English, Русский, Srpski,
+  Bahasa Indonesia, Português (Brasil), 简体中文.
 * **Multi-byte input & display** — `WM_CHAR`/`WM_IME_CHAR` are fed straight
   into ImGui (IME-composed Chinese input works), player nicknames are converted
   from the system ANSI code page to UTF-8 for display, and the blacklist filter
-  normalizes the input to the system code page before matching.
+  matches case-insensitively, converting the input to the system code page
+  before matching.
 * **Mic availability fix** — recording devices are enumerated locally at game
   load instead of only during the server handshake, so the menu no longer
   reports "No microphones available" when the server lacks the plugin.
