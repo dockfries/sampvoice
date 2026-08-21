@@ -12,6 +12,7 @@
 #include "Plugin.h"
 
 #include <cassert>
+#include <vector>
 
 #include <CommCtrl.h>
 
@@ -67,13 +68,25 @@ namespace
         }
 
         // Prefer font.ttf, fall back to font.otf (both are supported by
-        // stb_truetype: TrueType glyphs and CFF/OTF outlines).
-        static ExternalResource LoadFont() noexcept
+        // stb_truetype: TrueType glyphs and CFF/OTF outlines). The loaded
+        // bytes are stored in Plugin::fontData which lives for the whole
+        // atlas lifetime (required by ImGui 1.92 with FontDataOwnedByAtlas=false).
+        static ResourceData LoadFont() noexcept
         {
-            auto result = ExternalResource::Load("font.ttf");
-            if (!result.IsValid())
-                result = ExternalResource::Load("font.otf");
-            return result;
+            auto fileData = Storage::ReadFile(Storage::GetResourcePath("font.ttf"));
+            if (fileData.empty())
+                fileData = Storage::ReadFile(Storage::GetResourcePath("font.otf"));
+
+            if (fileData.empty())
+                return {};
+
+            auto& fontData = Plugin::GetFontData();
+            fontData = std::move(fileData);
+
+            ResourceData view;
+            view.ptr = fontData.data();
+            view.size = fontData.size();
+            return view;
         }
 
         bool IsValid() const noexcept
@@ -695,7 +708,7 @@ void Plugin::OnDeviceInit(IDirect3D9* const pDirect,
     const auto activeIcon = ExternalResource::Load("micro_active.png");
     const auto mutedIcon = ExternalResource::Load("micro_muted.png");
     const auto speakerIcon = ExternalResource::Load("speaker.png");
-    const auto fontFile = ExternalResource::LoadFont();
+    const auto fontData = ExternalResource::LoadFont();
     const auto logoFile = ExternalResource::Load("logo.png");
     const auto shaderFile = ExternalResource::Load("gauss.hlsl");
 
@@ -711,12 +724,12 @@ void Plugin::OnDeviceInit(IDirect3D9* const pDirect,
     if (imguiStatus)
     {
         const auto speakerListStatus = SpeakerList::Init(pDevice,
-            speakerIcon.view, fontFile.view);
+            speakerIcon.view, fontData);
         Logger::LogToFile("[sv:dbg:render:plugin] : SpeakerList initialization %s",
             speakerListStatus ? "succeeded" : "failed");
 
         const auto pluginMenuStatus = PluginMenu::Init(pDevice,
-            shaderFile.view, logoFile.view, fontFile.view);
+            shaderFile.view, logoFile.view, fontData);
         Logger::LogToFile("[sv:dbg:render:plugin] : PluginMenu initialization %s",
             pluginMenuStatus ? "succeeded" : "failed");
     }
@@ -776,7 +789,7 @@ void Plugin::OnAfterReset(IDirect3DDevice9* const pDevice,
     const auto activeIcon = ExternalResource::Load("micro_active.png");
     const auto mutedIcon = ExternalResource::Load("micro_muted.png");
     const auto speakerIcon = ExternalResource::Load("speaker.png");
-    const auto fontFile = ExternalResource::LoadFont();
+    const auto fontData = ExternalResource::LoadFont();
     const auto logoFile = ExternalResource::Load("logo.png");
     const auto shaderFile = ExternalResource::Load("gauss.hlsl");
 
@@ -792,12 +805,12 @@ void Plugin::OnAfterReset(IDirect3DDevice9* const pDevice,
     if (imguiStatus)
     {
         const auto speakerListStatus = SpeakerList::Init(pDevice,
-            speakerIcon.view, fontFile.view);
+            speakerIcon.view, fontData);
         Logger::LogToFile("[sv:dbg:render:plugin] : post-reset SpeakerList initialization %s",
             speakerListStatus ? "succeeded" : "failed");
 
         const auto pluginMenuStatus = PluginMenu::Init(pDevice,
-            shaderFile.view, logoFile.view, fontFile.view);
+            shaderFile.view, logoFile.view, fontData);
         Logger::LogToFile("[sv:dbg:render:plugin] : post-reset PluginMenu initialization %s",
             pluginMenuStatus ? "succeeded" : "failed");
     }
@@ -829,6 +842,9 @@ void Plugin::OnDeviceFree()
     ImGuiUtil::Free();
     MicroIcon::Free();
 
+    // The font bytes must outlive the ImGui atlas (FontDataOwnedByAtlas=false).
+    Plugin::GetFontData().clear();
+
     Logger::LogToFile("[sv:dbg:render:plugin] : device release cleanup completed");
 }
 
@@ -853,5 +869,12 @@ bool Plugin::gameStatus { false };
 
 HWND Plugin::origWndHandle { NULL };
 bool Plugin::windowSubclassStatus { false };
+
+std::vector<uint8_t> Plugin::fontData;
+
+std::vector<uint8_t>& Plugin::GetFontData() noexcept
+{
+    return Plugin::fontData;
+}
 
 Memory::CallHookPtr Plugin::drawRadarHook { nullptr };

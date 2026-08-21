@@ -14,6 +14,7 @@
 #include <thread>
 #include <queue>
 #include <map>
+#include <vector>
 
 #include <WinSock2.h>
 #include <Windows.h>
@@ -38,6 +39,10 @@ public:
 
     static bool OnPluginLoad(HMODULE hModule) noexcept;
     static bool OnSampLoad(HMODULE hModule) noexcept;
+
+    // Owned font bytes that stay alive for the whole ImGui atlas lifetime
+    // (FontDataOwnedByAtlas = false).
+    static std::vector<uint8_t>& GetFontData() noexcept;
 
 private:
 
@@ -78,6 +83,8 @@ private:
 
     static HWND origWndHandle;
     static bool windowSubclassStatus;
+
+    static std::vector<uint8_t> fontData;
 
     static Memory::CallHookPtr drawRadarHook;
 
