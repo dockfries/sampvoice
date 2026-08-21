@@ -24,6 +24,7 @@
 #include "MicroIcon.h"
 #include "Playback.h"
 #include "Record.h"
+#include "PluginConfig.h"
 
 namespace
 {
@@ -178,7 +179,7 @@ bool PluginMenu::Init(IDirect3DDevice9* const pDevice,
             return false;
         }
 
-        PluginMenu::pTitleFont = ImGui::GetIO().Fonts->AddFontFromMemoryTTF(rFont.ptr,
+        PluginMenu::pTitleFont = ImGui::GetIO().Fonts->AddFontFromMemoryTTF(const_cast<void*>(rFont.ptr),
             static_cast<int>(rFont.size), varTitleFontSize, &fontConfig, ImGuiUtil::GetGlyphRanges());
 
         if (PluginMenu::pTitleFont == nullptr)
@@ -199,7 +200,7 @@ bool PluginMenu::Init(IDirect3DDevice9* const pDevice,
             return false;
         }
 
-        PluginMenu::pTabFont = ImGui::GetIO().Fonts->AddFontFromMemoryTTF(rFont.ptr,
+        PluginMenu::pTabFont = ImGui::GetIO().Fonts->AddFontFromMemoryTTF(const_cast<void*>(rFont.ptr),
             static_cast<int>(rFont.size), varTabFontSize, &fontConfig, ImGuiUtil::GetGlyphRanges());
 
         if (PluginMenu::pTabFont == nullptr)
@@ -220,7 +221,7 @@ bool PluginMenu::Init(IDirect3DDevice9* const pDevice,
             return false;
         }
 
-        PluginMenu::pDescFont = ImGui::GetIO().Fonts->AddFontFromMemoryTTF(rFont.ptr,
+        PluginMenu::pDescFont = ImGui::GetIO().Fonts->AddFontFromMemoryTTF(const_cast<void*>(rFont.ptr),
             static_cast<int>(rFont.size), varDescFontSize, &fontConfig, ImGuiUtil::GetGlyphRanges());
 
         if (PluginMenu::pDescFont == nullptr)
@@ -241,7 +242,7 @@ bool PluginMenu::Init(IDirect3DDevice9* const pDevice,
             return false;
         }
 
-        PluginMenu::pDefFont = ImGui::GetIO().Fonts->AddFontFromMemoryTTF(rFont.ptr,
+        PluginMenu::pDefFont = ImGui::GetIO().Fonts->AddFontFromMemoryTTF(const_cast<void*>(rFont.ptr),
             static_cast<int>(rFont.size), varFontSize, &fontConfig, ImGuiUtil::GetGlyphRanges());
 
         if (PluginMenu::pDefFont == nullptr)

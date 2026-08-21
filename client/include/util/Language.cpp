@@ -133,10 +133,10 @@ namespace {
 
 void Language::Load(const std::string& languageName) noexcept
 {
-    Language::ResetToEnglish();
+    ResetToEnglish();
 
     if (availableLanguages.empty())
-        Language::EnumerateLanguages();
+        EnumerateLanguages();
 
     if (languageName.empty())
         return;
@@ -176,10 +176,9 @@ void Language::Load(const std::string& languageName) noexcept
     {
         Logger::LogToFile("[sv:err:language] : failed to parse language file '%s' (%s)",
             filePath.c_str(), exception.what());
-        Language::ResetToEnglish();
+        ResetToEnglish();
     }
 }
-
 const std::string& Language::GetLanguageName() noexcept
 {
     return activeLanguageName;
@@ -197,7 +196,7 @@ const char* Language::Get(const TextId id) noexcept
 const std::vector<std::string>& Language::GetAvailableLanguages() noexcept
 {
     if (availableLanguages.empty())
-        Language::EnumerateLanguages();
+        EnumerateLanguages();
 
     return availableLanguages;
 }

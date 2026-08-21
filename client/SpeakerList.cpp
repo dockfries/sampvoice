@@ -64,7 +64,7 @@ bool SpeakerList::Init(IDirect3DDevice9* const pDevice,
         ImFontConfig fontConfig;
         fontConfig.FontDataOwnedByAtlas = false;
 
-        SpeakerList::pSpeakerFont = ImGui::GetIO().Fonts->AddFontFromMemoryTTF(rSpeakerFont.ptr,
+        SpeakerList::pSpeakerFont = ImGui::GetIO().Fonts->AddFontFromMemoryTTF(const_cast<void*>(rSpeakerFont.ptr),
             static_cast<int>(rSpeakerFont.size), varFontSize, &fontConfig, ImGuiUtil::GetGlyphRanges());
 
         if (SpeakerList::pSpeakerFont == nullptr)
