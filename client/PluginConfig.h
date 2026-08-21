@@ -31,7 +31,7 @@ public:
         upon receipt of the value, are converted to the screen resolution by the CRender module
     */
 
-    static constexpr int      kConfigVersion            = 2;
+    static constexpr int      kConfigVersion            = 3;
     static constexpr bool     kDefValSoundEnable        = true;
     static constexpr int      kDefValSoundVolume        = 100;
     static constexpr bool     kDefValSoundBalancer      = false;
@@ -69,6 +69,7 @@ public:
     static int GetSoundVolume() noexcept;
     static bool GetSoundBalancer() noexcept;
     static bool GetSoundFilter() noexcept;
+    static const std::string& GetLanguage() noexcept;
     static float GetSpeakerIconScale() noexcept;
     static int GetSpeakerIconOffsetX() noexcept;
     static int GetSpeakerIconOffsetY() noexcept;
@@ -85,6 +86,7 @@ public:
     static void SetSoundVolume(int soundVolume) noexcept;
     static void SetSoundBalancer(bool soundBalancer) noexcept;
     static void SetSoundFilter(bool soundFilter) noexcept;
+    static void SetLanguage(std::string language) noexcept;
     static void SetSpeakerIconScale(float speakerIconScale) noexcept;
     static void SetSpeakerIconOffsetX(int speakerIconOffsetX) noexcept;
     static void SetSpeakerIconOffsetY(int speakerIconOffsetY) noexcept;
@@ -110,6 +112,7 @@ private:
     static int soundVolume;
     static bool soundBalancer;
     static bool soundFilter;
+    static std::string language;
 
     static float speakerIconScale;
     static int speakerIconOffsetX;

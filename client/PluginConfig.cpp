@@ -37,12 +37,13 @@ bool PluginConfig::Load(const std::string& configFilePath)
         configFile.read(reinterpret_cast<char*>(&recordLoaded),       sizeof(recordLoaded))       &&
         configFile.read(reinterpret_cast<char*>(&microLoaded),        sizeof(microLoaded))        &&
 
-        configFile.read(reinterpret_cast<char*>(&soundEnable),        sizeof(soundEnable))        &&
-        configFile.read(reinterpret_cast<char*>(&soundVolume),        sizeof(soundVolume))        &&
-        configFile.read(reinterpret_cast<char*>(&soundBalancer),      sizeof(soundBalancer))      &&
-        configFile.read(reinterpret_cast<char*>(&soundFilter),        sizeof(soundFilter))        &&
+    configFile.read(reinterpret_cast<char*>(&soundEnable),        sizeof(soundEnable))        &&
+    configFile.read(reinterpret_cast<char*>(&soundVolume),        sizeof(soundVolume))        &&
+    configFile.read(reinterpret_cast<char*>(&soundBalancer),      sizeof(soundBalancer))      &&
+    configFile.read(reinterpret_cast<char*>(&soundFilter),        sizeof(soundFilter))        &&
+    std::getline(configFile, language, '\0')                                                  &&
 
-        configFile.read(reinterpret_cast<char*>(&speakerIconScale),   sizeof(speakerIconScale))   &&
+    configFile.read(reinterpret_cast<char*>(&speakerIconScale),   sizeof(speakerIconScale))   &&
         configFile.read(reinterpret_cast<char*>(&speakerIconOffsetX), sizeof(speakerIconOffsetX)) &&
         configFile.read(reinterpret_cast<char*>(&speakerIconOffsetY), sizeof(speakerIconOffsetY)) &&
 
@@ -79,6 +80,7 @@ bool PluginConfig::Save(const std::string& configFilePath)
            configFile.write(reinterpret_cast<const char*>(&soundVolume),        sizeof(soundVolume))        &&
            configFile.write(reinterpret_cast<const char*>(&soundBalancer),      sizeof(soundBalancer))      &&
            configFile.write(reinterpret_cast<const char*>(&soundFilter),        sizeof(soundFilter))        &&
+           configFile.write(language.data(),                                   language.size() + 1)          &&
 
            configFile.write(reinterpret_cast<const char*>(&speakerIconScale),   sizeof(speakerIconScale))   &&
            configFile.write(reinterpret_cast<const char*>(&speakerIconOffsetX), sizeof(speakerIconOffsetX)) &&
@@ -108,6 +110,7 @@ void PluginConfig::Reset() noexcept
     PluginConfig::soundVolume = kDefValSoundVolume;
     PluginConfig::soundBalancer = kDefValSoundBalancer;
     PluginConfig::soundFilter = kDefValSoundFilter;
+    PluginConfig::language = "english";
 
     PluginConfig::speakerIconScale = kDefValSpeakerIconScale;
     PluginConfig::speakerIconOffsetX = kDefValSpeakerIconOffsetX;
@@ -187,6 +190,11 @@ bool PluginConfig::GetSoundBalancer() noexcept
 bool PluginConfig::GetSoundFilter() noexcept
 {
     return PluginConfig::soundFilter;
+}
+
+const std::string& PluginConfig::GetLanguage() noexcept
+{
+    return PluginConfig::language;
 }
 
 float PluginConfig::GetSpeakerIconScale() noexcept
@@ -276,6 +284,11 @@ void PluginConfig::SetSoundFilter(const bool soundFilter) noexcept
     PluginConfig::soundFilter = soundFilter;
 }
 
+void PluginConfig::SetLanguage(std::string language) noexcept
+{
+    PluginConfig::language = std::move(language);
+}
+
 void PluginConfig::SetSpeakerIconScale(const float speakerIconScale) noexcept
 {
     PluginConfig::speakerIconScale = speakerIconScale;
@@ -354,6 +367,7 @@ bool PluginConfig::soundEnable { kDefValSoundEnable };
 int PluginConfig::soundVolume { kDefValSoundVolume };
 bool PluginConfig::soundBalancer { kDefValSoundBalancer };
 bool PluginConfig::soundFilter { kDefValSoundFilter };
+std::string PluginConfig::language { "english" };
 
 float PluginConfig::speakerIconScale { kDefValSpeakerIconScale };
 int PluginConfig::speakerIconOffsetX { kDefValSpeakerIconOffsetX };

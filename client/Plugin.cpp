@@ -22,6 +22,7 @@
 #include <util/GameUtil.h>
 #include <util/ImGuiUtil.h>
 #include <util/KeyFilter.h>
+#include <util/Language.h>
 #include <util/RakNet.h>
 #include <util/Logger.h>
 #include <util/Storage.h>
@@ -126,6 +127,8 @@ bool Plugin::OnSampLoad(const HMODULE hModule) noexcept
     {
         Logger::LogToFile("[sv:err:plugin] : failed to load configs");
     }
+
+    Language::Load(PluginConfig::GetLanguage());
 
     if (!Samp::Init(Plugin::sampBaseAddr))
     {

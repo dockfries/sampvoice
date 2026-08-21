@@ -416,6 +416,41 @@ void PluginMenu::Render() noexcept
 
                 ImGui::NewLine();
                 ImGui::PushFont(PluginMenu::pDescFont);
+                ImGui::Text(kLanguageText);
+                ImGui::Separator();
+                ImGui::PopFont();
+                ImGui::NewLine();
+
+                const auto& languages = Language::GetAvailableLanguages();
+                if (!languages.empty())
+                {
+                    const std::string currentLang = PluginConfig::GetLanguage();
+                    int currentLangIndex = -1;
+                    for (int i { 0 }; i < static_cast<int>(languages.size()); ++i)
+                    {
+                        if (languages[i] == currentLang) { currentLangIndex = i; break; }
+                    }
+
+                    ImGui::PushItemWidth(-1);
+                    if (ImGui::BeginCombo(kLanguageText, currentLangIndex >= 0
+                        ? languages[currentLangIndex].c_str() : currentLang.c_str()))
+                    {
+                        for (int i { 0 }; i < static_cast<int>(languages.size()); ++i)
+                        {
+                            if (ImGui::Selectable(languages[i].c_str(), i == currentLangIndex))
+                            {
+                                PluginConfig::SetLanguage(languages[i]);
+                                Language::Load(languages[i]);
+                                PluginMenu::SyncOptions();
+                            }
+                        }
+                        ImGui::EndCombo();
+                    }
+                    ImGui::PopItemWidth();
+                }
+
+                ImGui::NewLine();
+                ImGui::PushFont(PluginMenu::pDescFont);
                 ImGui::Text(kTab1Desc1TitleText);
                 ImGui::Separator();
                 ImGui::PopFont();
