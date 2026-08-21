@@ -62,6 +62,10 @@ bool ImGuiUtil::Init(IDirect3DDevice9* const pDevice) noexcept
     ImGui::GetIO().IniFilename = NULL;
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
+    // The multi-language glyph set (full CJK + Hangul + extras) needs a wider
+    // atlas than the default 4096.
+    ImGui::GetIO().Fonts->TexDesiredWidth = 8192;
+
     ImGuiUtil::win32loadStatus = ImGui_ImplWin32_Init(hDeviceWindow);
     if (!ImGuiUtil::win32loadStatus)
     {
@@ -194,8 +198,31 @@ const ImWchar* ImGuiUtil::GetGlyphRanges() noexcept
     static const ImWchar* ranges = []() -> const ImWchar*
     {
         ImFontGlyphRangesBuilder builder;
+
+        // Latin + Latin-1 + Cyrillic
         builder.AddRanges(ImGui::GetIO().Fonts->GetGlyphRangesCyrillic());
-        builder.AddRanges(ImGui::GetIO().Fonts->GetGlyphRangesChineseSimplifiedCommon());
+        // Full CJK ideographs + Hiragana/Katakana + half-width
+        builder.AddRanges(ImGui::GetIO().Fonts->GetGlyphRangesChineseFull());
+        // Korean Hangul
+        builder.AddRanges(ImGui::GetIO().Fonts->GetGlyphRangesKorean());
+        // Thai
+        builder.AddRanges(ImGui::GetIO().Fonts->GetGlyphRangesThai());
+
+        // Additional blocks commonly found in player nicknames:
+        // Latin Extended-A/B, IPA, Greek, Cyrillic Supplement, Hebrew,
+        // Arabic (glyphs only; ImGui has no RTL shaping), Latin Extended Additional.
+        static const ImWchar kExtraRanges[] =
+        {
+            0x0100, 0x02AF,  // Latin Extended-A/B, IPA Extensions
+            0x0370, 0x03FF,  // Greek and Coptic
+            0x0500, 0x052F,  // Cyrillic Supplement
+            0x0590, 0x05FF,  // Hebrew
+            0x0600, 0x06FF,  // Arabic
+            0x1E00, 0x1EFF,  // Latin Extended Additional
+            0
+        };
+        builder.AddRanges(kExtraRanges);
+
         static ImVector<ImWchar> result;
         builder.BuildRanges(&result);
         return result.Data;

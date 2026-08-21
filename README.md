@@ -267,6 +267,10 @@ Outputs: `sampvoice_r1.asi`, `sampvoice_r3.asi`, `sampvoice_r5.asi`, `sampvoice_
 
 > **Note:** For packaging the runtime files (BASS DLLs, language files, resources) alongside the `.asi`, refer to the CI workflow in `.github/workflows/build.yml`.
 
+> **Note:** The client loads all UI resources from the `resources/` folder placed next to the `.asi` (fonts, icons, blur shader) and the language packs from `languages/`. These folders are **required** at runtime.
+>
+> **Customizing the UI font:** drop any TrueType (`.ttf`) or OpenType (`.otf`) font into `resources/font.ttf` / `resources/font.otf` to replace the UI font (the loader prefers `font.ttf`, then `font.otf`). The glyph ranges baked into the atlas cover Latin, Cyrillic, Greek, Hebrew, Arabic (no RTL shaping), full CJK, Japanese kana, Korean and Thai; characters outside those ranges render as fallback boxes. Note that a larger font file only matters if the requested glyphs are within those ranges.
+
 > **Note:** The client requires `d3dx9.h` headers. If you have the DirectX SDK installed, set `DXSDK_DIR`. Otherwise, the build will find them via NuGet (`Microsoft.DXSDK.D3DX`) or use the local headers in `client/include/dxsdk/`. No separate DXSDK installation is required.
 
 ### Linux (Server)
