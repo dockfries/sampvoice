@@ -139,7 +139,7 @@ void Pawn::OnPlayerActivationKeyPressForAll(const uint16_t playerid, const uint8
 	for (const auto& script : Pawn::scripts)
 	{
 		int tmpIndex{ -1 };
-		if (amx_FindPublic(script, "OnPlayerActivationKeyPress", &tmpIndex) == 0 && tmpIndex >= 0)
+		if (amx_FindPublic(script, "OnPlayerActivationKeyPress", &tmpIndex) == 0)
 		{
 			Pawn::CallAmxCallback(script, tmpIndex, keyid, playerid);
 		}
@@ -153,7 +153,7 @@ void Pawn::OnPlayerActivationKeyReleaseForAll(const uint16_t playerid, const uin
 	for (const auto& script : Pawn::scripts)
 	{
 		int tmpIndex{ -1 };
-		if (amx_FindPublic(script, "OnPlayerActivationKeyRelease", &tmpIndex) == 0 && tmpIndex >= 0)
+		if (amx_FindPublic(script, "OnPlayerActivationKeyRelease", &tmpIndex) == 0)
 		{
 			Pawn::CallAmxCallback(script, tmpIndex, keyid, playerid);
 		}
